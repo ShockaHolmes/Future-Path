@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sqlite3
 from pathlib import Path
+from typing import TypedDict
 
 
 DEFAULT_DATABASE = Path("database/future_path.db")
@@ -22,6 +23,37 @@ NEED_TAG_MAP = {
 }
 
 RESOURCE_PRIORITY_SCORE = {"High": 25, "Medium": 15, "Low": 8}
+
+
+class NeedPayload(TypedDict):
+    risk_points: int
+    reasons: list[str]
+
+
+class ResourceCandidate(TypedDict):
+    resource_id: str
+    resource_name: str
+    match_score: float
+    match_reasons: list[str]
+
+
+class ResourceMatch(TypedDict):
+    resource_id: str
+    resource_name: str
+    match_score: float
+    priority_level: str
+    match_reason: str
+
+
+class AssignmentResult(TypedDict):
+    session_id: str
+    profile_type: str
+    youth_id: str | None
+    candidate_profile_id: str | None
+    total_risk_points: int
+    needs: dict[str, NeedPayload]
+    assignments: list[ResourceMatch]
+    assigned_rows: int
 
 
 def parse_args() -> argparse.Namespace:
@@ -281,13 +313,13 @@ def _priority_from_score(score: float) -> str:
     return "Low"
 
 
-def map_answers_to_needs(answers: dict[str, str], top_need_category: str | None) -> tuple[dict[str, dict[str, object]], int]:
-    needs: dict[str, dict[str, object]] = {}
+def map_answers_to_needs(answers: dict[str, str], top_need_category: str | None) -> tuple[dict[str, NeedPayload], int]:
+    needs: dict[str, NeedPayload] = {}
 
     def add_need(need_key: str, points: int, reason: str) -> None:
         if need_key not in needs:
             needs[need_key] = {"risk_points": 0, "reasons": []}
-        needs[need_key]["risk_points"] = int(needs[need_key]["risk_points"]) + points
+        needs[need_key]["risk_points"] = needs[need_key]["risk_points"] + points
         needs[need_key]["reasons"].append(reason)
 
     housing = answers.get("housing_status", "")
@@ -353,7 +385,7 @@ def map_answers_to_needs(answers: dict[str, str], top_need_category: str | None)
     if not needs:
         add_need("general_support", 10, "No high-risk responses detected")
 
-    total_points = sum(int(needs[need_key]["risk_points"]) for need_key in needs)
+    total_points = sum(needs[need_key]["risk_points"] for need_key in needs)
     return needs, total_points
 
 
@@ -374,17 +406,17 @@ def _load_profile_context(connection: sqlite3.Connection, youth_id: str | None) 
 
 def _match_resources(
     resources: list[sqlite3.Row],
-    needs: dict[str, dict[str, object]],
+    needs: dict[str, NeedPayload],
     age: int | None,
     county: str | None,
     top_n: int,
-) -> list[dict[str, object]]:
-    by_resource: dict[str, dict[str, object]] = {}
+) -> list[ResourceMatch]:
+    by_resource: dict[str, ResourceCandidate] = {}
 
     for need_key, payload in needs.items():
         target_tags = NEED_TAG_MAP.get(need_key, {"general_support"})
-        need_points = int(payload["risk_points"])
-        need_reasons = [str(reason) for reason in payload["reasons"]]
+        need_points = payload["risk_points"]
+        need_reasons = payload["reasons"]
 
         for resource in resources:
             min_age = int(resource["eligibility_age_min"])
@@ -428,22 +460,22 @@ def _match_resources(
                     "match_reasons": [match_reason],
                 }
             else:
-                by_resource[resource_id]["match_score"] = float(by_resource[resource_id]["match_score"]) + score
+                by_resource[resource_id]["match_score"] = by_resource[resource_id]["match_score"] + score
                 by_resource[resource_id]["match_reasons"].append(match_reason)
 
     ranked = list(by_resource.values())
-    ranked.sort(key=lambda row: (-float(row["match_score"]), str(row["resource_name"])))
+    ranked.sort(key=lambda row: (-row["match_score"], row["resource_name"]))
 
-    output: list[dict[str, object]] = []
+    output: list[ResourceMatch] = []
     for row in ranked[:top_n]:
-        score = float(row["match_score"])
+        score = row["match_score"]
         output.append(
             {
-                "resource_id": str(row["resource_id"]),
-                "resource_name": str(row["resource_name"]),
+                "resource_id": row["resource_id"],
+                "resource_name": row["resource_name"],
                 "match_score": score,
                 "priority_level": _priority_from_score(score),
-                "match_reason": " | ".join(str(reason) for reason in row["match_reasons"]),
+                "match_reason": " | ".join(row["match_reasons"]),
             }
         )
 
@@ -455,7 +487,7 @@ def assign_resources_from_intake(
     intake_session_id: str | None,
     top_n: int,
     assigned_by: str,
-) -> dict[str, object]:
+) -> AssignmentResult:
     if top_n < 1:
         raise ValueError("top_n must be at least 1")
 
@@ -532,7 +564,7 @@ def assign_resources_from_intake(
     }
 
 
-def _format_summary(result: dict[str, object]) -> str:
+def _format_summary(result: AssignmentResult) -> str:
     profile_type = str(result["profile_type"])
     profile_label = (
         f"youth_id={result['youth_id']}" if profile_type == "youth" else f"candidate_profile_id={result['candidate_profile_id']}"

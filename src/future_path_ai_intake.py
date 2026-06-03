@@ -4,10 +4,17 @@ import argparse
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TypedDict
 from uuid import uuid4
 
 
-QUESTIONS = [
+class IntakeQuestion(TypedDict):
+    key: str
+    prompt: str
+    options: list[str]
+
+
+QUESTIONS: list[IntakeQuestion] = [
     {
         "key": "housing_status",
         "prompt": "What is your current housing situation?",
@@ -266,10 +273,10 @@ def resolve_profile_link(
     return "candidate", None, normalized_candidate_id
 
 
-def prompt_for_answer(index: int, total: int, question: dict[str, object]) -> str:
-    key = str(question["key"])
-    prompt = str(question["prompt"])
-    options = [str(option) for option in question["options"]]
+def prompt_for_answer(index: int, total: int, question: IntakeQuestion) -> str:
+    key = question["key"]
+    prompt = question["prompt"]
+    options = question["options"]
 
     print(f"\nQuestion {index}/{total}: {prompt}")
     print(f"Options: {', '.join(options)}")
@@ -397,13 +404,13 @@ def run_intake(
     collected: dict[str, str] = {}
     total = len(QUESTIONS)
     for idx, question in enumerate(QUESTIONS, start=1):
-        key = str(question["key"])
-        prompt = str(question["prompt"])
+        key = question["key"]
+        prompt = question["prompt"]
         if answers is None:
             value = prompt_for_answer(idx, total, question)
         else:
             value = str(answers[key]).strip().lower()
-            if value not in {str(option) for option in question["options"]}:
+            if value not in set(question["options"]):
                 raise ValueError(f"Invalid test answer for {key}: {value}")
         collected[key] = value
         save_answer(connection, session_id, key, prompt, value)
@@ -456,7 +463,7 @@ def main() -> None:
             print("- General support")
         print("\nCaptured answers:")
         for question in QUESTIONS:
-            key = str(question["key"])
+            key = question["key"]
             print(f"- {key}: {answers[key]}")
 
     except KeyboardInterrupt:
