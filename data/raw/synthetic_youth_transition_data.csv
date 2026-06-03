@@ -1,0 +1,501 @@
+youth_id,age,county,education,employment,housing,mentor_status,placement_count,prior_homelessness
+YP-0001,18,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,5,Yes
+YP-0002,17,New Castle,Not enrolled,Part-time,Stable housing,Assigned,1,No
+YP-0003,14,Sussex,Associate degree,Unemployed,Stable housing,Assigned,4,Yes
+YP-0004,19,New Castle,Middle school,Full-time,Stable housing,Assigned,6,No
+YP-0005,13,New Castle,High school,Part-time,Couch surfing,Not assigned,6,No
+YP-0006,16,New Castle,Not enrolled,Unemployed,Transitional housing,Assigned,7,No
+YP-0007,13,New Castle,Not enrolled,Unemployed,Transitional housing,Not assigned,7,Yes
+YP-0008,15,Kent,GED/HiSET,Unemployed,Stable housing,Assigned,1,No
+YP-0009,18,New Castle,Associate degree,Unemployed,Couch surfing,Assigned,2,Yes
+YP-0010,18,Sussex,Associate degree,Part-time,Temporary shelter,Not assigned,7,Yes
+YP-0011,19,New Castle,High school,Full-time,Stable housing,Not assigned,4,No
+YP-0012,18,Kent,GED/HiSET,Unemployed,At risk of homelessness,Assigned,3,Yes
+YP-0013,17,Sussex,High school,Full-time,Stable housing,Assigned,2,Yes
+YP-0014,17,Kent,GED/HiSET,Unemployed,Stable housing,Assigned,5,Yes
+YP-0015,17,Sussex,Not enrolled,Unemployed,Couch surfing,Assigned,3,No
+YP-0016,13,New Castle,Associate degree,Part-time,Temporary shelter,Assigned,3,No
+YP-0017,15,New Castle,GED/HiSET,Unemployed,Stable housing,Not assigned,5,Yes
+YP-0018,14,New Castle,Some college,Seasonal,At risk of homelessness,Assigned,6,No
+YP-0019,15,New Castle,Middle school,Unemployed,Transitional housing,Assigned,1,No
+YP-0020,13,New Castle,High school,Seasonal,Transitional housing,Assigned,1,Yes
+YP-0021,13,New Castle,Not enrolled,Part-time,Transitional housing,Not assigned,5,No
+YP-0022,16,Kent,Some college,Unemployed,Stable housing,Assigned,1,No
+YP-0023,18,New Castle,Middle school,Full-time,Stable housing,Assigned,2,No
+YP-0024,13,New Castle,Middle school,Unemployed,Stable housing,Assigned,1,No
+YP-0025,18,New Castle,Associate degree,Unemployed,Stable housing,Assigned,2,Yes
+YP-0026,18,New Castle,GED/HiSET,Unemployed,Stable housing,Not assigned,4,No
+YP-0027,16,Sussex,GED/HiSET,Unemployed,Stable housing,Assigned,3,No
+YP-0028,13,Sussex,Associate degree,Unemployed,Couch surfing,Assigned,6,No
+YP-0029,14,Sussex,Middle school,Unemployed,Stable housing,Assigned,2,No
+YP-0030,13,Sussex,GED/HiSET,Part-time,At risk of homelessness,Assigned,6,No
+YP-0031,13,New Castle,Middle school,Unemployed,Stable housing,Assigned,3,No
+YP-0032,13,Kent,GED/HiSET,Unemployed,Transitional housing,Assigned,4,No
+YP-0033,19,New Castle,Some college,Full-time,Stable housing,Assigned,1,No
+YP-0034,17,New Castle,Not enrolled,Full-time,Stable housing,Assigned,4,No
+YP-0035,13,New Castle,Some college,Unemployed,Stable housing,Assigned,5,No
+YP-0036,17,New Castle,Middle school,Part-time,Stable housing,Assigned,5,No
+YP-0037,15,New Castle,Middle school,Unemployed,Stable housing,Assigned,1,No
+YP-0038,15,New Castle,Not enrolled,Unemployed,Couch surfing,Assigned,1,Yes
+YP-0039,15,New Castle,Middle school,Seasonal,At risk of homelessness,Not assigned,3,No
+YP-0040,17,Sussex,Associate degree,Unemployed,At risk of homelessness,Not assigned,5,Yes
+YP-0041,15,New Castle,Associate degree,Unemployed,At risk of homelessness,Assigned,1,No
+YP-0042,15,New Castle,Some college,Unemployed,Stable housing,Not assigned,6,Yes
+YP-0043,19,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,0,No
+YP-0044,15,Sussex,Middle school,Part-time,Couch surfing,Assigned,1,Yes
+YP-0045,18,New Castle,Middle school,Part-time,Transitional housing,Assigned,2,No
+YP-0046,15,New Castle,Not enrolled,Seasonal,Stable housing,Assigned,0,No
+YP-0047,19,Sussex,GED/HiSET,Training / internship,Temporary shelter,Not assigned,2,No
+YP-0048,19,New Castle,Middle school,Training / internship,Stable housing,Not assigned,2,No
+YP-0049,18,New Castle,Associate degree,Seasonal,Stable housing,Not assigned,0,No
+YP-0050,16,New Castle,Middle school,Unemployed,At risk of homelessness,Assigned,7,No
+YP-0051,13,Kent,Associate degree,Unemployed,Stable housing,Not assigned,6,Yes
+YP-0052,16,New Castle,Associate degree,Training / internship,Stable housing,Not assigned,0,No
+YP-0053,17,Kent,High school,Unemployed,Couch surfing,Assigned,7,No
+YP-0054,17,New Castle,Not enrolled,Unemployed,Couch surfing,Assigned,6,No
+YP-0055,19,New Castle,Some college,Full-time,At risk of homelessness,Not assigned,2,No
+YP-0056,18,Kent,High school,Part-time,Couch surfing,Assigned,3,No
+YP-0057,15,Kent,GED/HiSET,Unemployed,Couch surfing,Assigned,6,No
+YP-0058,14,New Castle,Some college,Unemployed,Stable housing,Not assigned,2,No
+YP-0059,17,Sussex,Some college,Full-time,Stable housing,Assigned,1,No
+YP-0060,19,New Castle,Associate degree,Part-time,Stable housing,Assigned,5,No
+YP-0061,19,Sussex,Middle school,Full-time,Stable housing,Assigned,0,Yes
+YP-0062,17,New Castle,Not enrolled,Part-time,At risk of homelessness,Assigned,6,No
+YP-0063,14,Kent,Middle school,Unemployed,Stable housing,Not assigned,6,No
+YP-0064,14,Sussex,Middle school,Part-time,Temporary shelter,Assigned,5,Yes
+YP-0065,16,Kent,Middle school,Part-time,Couch surfing,Not assigned,5,No
+YP-0066,16,New Castle,Some college,Part-time,At risk of homelessness,Assigned,5,No
+YP-0067,19,New Castle,GED/HiSET,Full-time,Transitional housing,Not assigned,3,No
+YP-0068,18,Sussex,Middle school,Unemployed,Stable housing,Assigned,2,No
+YP-0069,13,New Castle,Middle school,Unemployed,Stable housing,Assigned,1,Yes
+YP-0070,17,Kent,GED/HiSET,Part-time,Stable housing,Assigned,6,No
+YP-0071,19,Sussex,Some college,Part-time,Stable housing,Assigned,6,No
+YP-0072,19,New Castle,GED/HiSET,Full-time,Temporary shelter,Not assigned,2,No
+YP-0073,16,New Castle,Not enrolled,Unemployed,Couch surfing,Not assigned,6,Yes
+YP-0074,14,Kent,Some college,Unemployed,At risk of homelessness,Assigned,6,Yes
+YP-0075,14,Kent,GED/HiSET,Unemployed,Stable housing,Assigned,3,No
+YP-0076,16,Kent,High school,Part-time,Transitional housing,Assigned,1,No
+YP-0077,13,Sussex,High school,Unemployed,Stable housing,Not assigned,0,No
+YP-0078,14,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,0,No
+YP-0079,18,Kent,High school,Seasonal,Stable housing,Assigned,5,No
+YP-0080,14,New Castle,High school,Unemployed,Stable housing,Assigned,5,No
+YP-0081,18,New Castle,Middle school,Unemployed,Temporary shelter,Assigned,1,No
+YP-0082,18,New Castle,Some college,Seasonal,Transitional housing,Assigned,1,No
+YP-0083,15,New Castle,Not enrolled,Unemployed,Stable housing,Not assigned,6,No
+YP-0084,15,Sussex,Associate degree,Seasonal,Stable housing,Assigned,1,No
+YP-0085,15,Kent,Some college,Part-time,Stable housing,Assigned,3,No
+YP-0086,15,New Castle,Middle school,Part-time,Stable housing,Not assigned,1,No
+YP-0087,18,Sussex,GED/HiSET,Unemployed,Stable housing,Assigned,3,Yes
+YP-0088,15,New Castle,High school,Seasonal,Temporary shelter,Assigned,1,No
+YP-0089,14,New Castle,Associate degree,Unemployed,Couch surfing,Assigned,4,No
+YP-0090,19,New Castle,Not enrolled,Unemployed,Stable housing,Not assigned,2,No
+YP-0091,17,New Castle,Some college,Unemployed,At risk of homelessness,Assigned,3,No
+YP-0092,15,Kent,Middle school,Unemployed,Stable housing,Assigned,4,No
+YP-0093,14,New Castle,Middle school,Part-time,Stable housing,Assigned,6,No
+YP-0094,13,New Castle,Middle school,Unemployed,Stable housing,Assigned,5,No
+YP-0095,13,Sussex,Some college,Unemployed,At risk of homelessness,Assigned,7,No
+YP-0096,17,Sussex,High school,Part-time,Stable housing,Assigned,0,Yes
+YP-0097,13,Sussex,Not enrolled,Unemployed,Stable housing,Assigned,0,Yes
+YP-0098,15,Kent,Not enrolled,Training / internship,Stable housing,Not assigned,4,No
+YP-0099,19,New Castle,Some college,Part-time,At risk of homelessness,Assigned,5,No
+YP-0100,17,New Castle,Not enrolled,Part-time,Temporary shelter,Not assigned,2,No
+YP-0101,13,Kent,Middle school,Unemployed,Couch surfing,Assigned,4,No
+YP-0102,15,New Castle,Not enrolled,Unemployed,Temporary shelter,Not assigned,4,Yes
+YP-0103,15,Kent,Associate degree,Unemployed,Transitional housing,Assigned,1,No
+YP-0104,15,Sussex,Middle school,Unemployed,Stable housing,Assigned,5,No
+YP-0105,16,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,2,No
+YP-0106,13,New Castle,Some college,Unemployed,Stable housing,Assigned,2,Yes
+YP-0107,18,New Castle,Some college,Part-time,Stable housing,Not assigned,6,Yes
+YP-0108,19,New Castle,Middle school,Full-time,Couch surfing,Not assigned,2,No
+YP-0109,19,Sussex,GED/HiSET,Training / internship,Stable housing,Assigned,2,No
+YP-0110,15,New Castle,GED/HiSET,Unemployed,Stable housing,Not assigned,6,No
+YP-0111,13,Sussex,High school,Unemployed,Stable housing,Not assigned,6,No
+YP-0112,18,Kent,Some college,Part-time,Stable housing,Assigned,4,No
+YP-0113,19,New Castle,Not enrolled,Part-time,Stable housing,Not assigned,3,No
+YP-0114,13,New Castle,Associate degree,Unemployed,Stable housing,Assigned,4,Yes
+YP-0115,14,New Castle,Not enrolled,Unemployed,Stable housing,Not assigned,3,No
+YP-0116,18,New Castle,High school,Part-time,Stable housing,Assigned,3,No
+YP-0117,17,New Castle,Some college,Full-time,Stable housing,Assigned,6,No
+YP-0118,19,Sussex,Some college,Part-time,Stable housing,Not assigned,6,No
+YP-0119,16,New Castle,Middle school,Unemployed,Stable housing,Assigned,6,No
+YP-0120,15,New Castle,Middle school,Training / internship,Stable housing,Assigned,6,No
+YP-0121,18,Kent,GED/HiSET,Full-time,Transitional housing,Assigned,6,No
+YP-0122,14,Sussex,GED/HiSET,Training / internship,Stable housing,Not assigned,2,No
+YP-0123,16,Sussex,Not enrolled,Unemployed,Stable housing,Not assigned,3,No
+YP-0124,13,Sussex,GED/HiSET,Part-time,Stable housing,Assigned,3,No
+YP-0125,19,New Castle,Associate degree,Training / internship,Stable housing,Assigned,5,No
+YP-0126,17,Kent,Not enrolled,Part-time,Stable housing,Not assigned,2,No
+YP-0127,16,Sussex,Not enrolled,Part-time,Temporary shelter,Assigned,2,No
+YP-0128,13,New Castle,High school,Part-time,Stable housing,Assigned,1,Yes
+YP-0129,18,New Castle,Middle school,Unemployed,Stable housing,Not assigned,4,No
+YP-0130,17,Sussex,Middle school,Unemployed,Couch surfing,Assigned,6,Yes
+YP-0131,15,Sussex,Associate degree,Unemployed,Stable housing,Not assigned,4,No
+YP-0132,18,New Castle,High school,Part-time,Stable housing,Not assigned,6,No
+YP-0133,17,New Castle,High school,Part-time,At risk of homelessness,Assigned,7,No
+YP-0134,17,Sussex,Associate degree,Seasonal,At risk of homelessness,Not assigned,6,No
+YP-0135,15,Kent,Middle school,Unemployed,Stable housing,Assigned,4,Yes
+YP-0136,19,New Castle,Associate degree,Full-time,Stable housing,Assigned,5,No
+YP-0137,16,New Castle,Not enrolled,Unemployed,Temporary shelter,Assigned,3,No
+YP-0138,14,Sussex,Middle school,Part-time,At risk of homelessness,Assigned,5,No
+YP-0139,15,Sussex,GED/HiSET,Training / internship,Stable housing,Not assigned,6,Yes
+YP-0140,14,New Castle,Middle school,Full-time,Temporary shelter,Not assigned,7,No
+YP-0141,19,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,5,No
+YP-0142,16,Sussex,Associate degree,Seasonal,Stable housing,Assigned,0,No
+YP-0143,15,New Castle,Some college,Unemployed,Stable housing,Not assigned,5,No
+YP-0144,14,New Castle,Not enrolled,Seasonal,Stable housing,Assigned,0,Yes
+YP-0145,16,Kent,GED/HiSET,Unemployed,At risk of homelessness,Not assigned,5,No
+YP-0146,14,New Castle,GED/HiSET,Unemployed,Transitional housing,Assigned,3,Yes
+YP-0147,16,Sussex,GED/HiSET,Training / internship,At risk of homelessness,Assigned,6,No
+YP-0148,18,New Castle,High school,Unemployed,Stable housing,Not assigned,6,No
+YP-0149,14,New Castle,Associate degree,Unemployed,At risk of homelessness,Assigned,3,Yes
+YP-0150,17,New Castle,Middle school,Unemployed,Transitional housing,Assigned,2,No
+YP-0151,19,New Castle,Middle school,Seasonal,Couch surfing,Assigned,2,No
+YP-0152,19,New Castle,Middle school,Unemployed,At risk of homelessness,Assigned,3,No
+YP-0153,15,New Castle,Not enrolled,Unemployed,Stable housing,Not assigned,4,Yes
+YP-0154,16,Sussex,High school,Unemployed,Stable housing,Assigned,4,Yes
+YP-0155,19,Sussex,Associate degree,Full-time,Stable housing,Not assigned,0,No
+YP-0156,16,New Castle,Associate degree,Unemployed,Temporary shelter,Assigned,1,No
+YP-0157,14,New Castle,High school,Unemployed,Couch surfing,Not assigned,4,No
+YP-0158,16,Sussex,Some college,Unemployed,Stable housing,Not assigned,6,No
+YP-0159,17,New Castle,Associate degree,Seasonal,Stable housing,Not assigned,3,No
+YP-0160,16,Kent,Associate degree,Unemployed,Stable housing,Assigned,2,No
+YP-0161,16,Sussex,Not enrolled,Unemployed,Stable housing,Assigned,5,No
+YP-0162,17,Sussex,Not enrolled,Part-time,Couch surfing,Assigned,1,No
+YP-0163,19,New Castle,GED/HiSET,Training / internship,Temporary shelter,Not assigned,5,No
+YP-0164,17,New Castle,Middle school,Unemployed,Stable housing,Not assigned,2,No
+YP-0165,19,Kent,High school,Full-time,Transitional housing,Not assigned,7,No
+YP-0166,18,New Castle,Some college,Unemployed,At risk of homelessness,Not assigned,3,Yes
+YP-0167,19,New Castle,High school,Training / internship,Stable housing,Assigned,1,No
+YP-0168,14,New Castle,Associate degree,Unemployed,Stable housing,Not assigned,1,No
+YP-0169,14,New Castle,High school,Unemployed,Stable housing,Not assigned,4,Yes
+YP-0170,14,New Castle,Some college,Unemployed,Stable housing,Assigned,3,No
+YP-0171,15,Kent,Middle school,Part-time,Stable housing,Assigned,2,No
+YP-0172,17,New Castle,Associate degree,Unemployed,Stable housing,Not assigned,0,Yes
+YP-0173,14,New Castle,Middle school,Part-time,Stable housing,Assigned,3,No
+YP-0174,16,New Castle,Some college,Part-time,Stable housing,Not assigned,6,No
+YP-0175,18,New Castle,Not enrolled,Part-time,Stable housing,Assigned,2,No
+YP-0176,18,Sussex,Associate degree,Part-time,Stable housing,Assigned,2,Yes
+YP-0177,16,New Castle,Associate degree,Seasonal,Stable housing,Not assigned,1,No
+YP-0178,13,New Castle,GED/HiSET,Seasonal,Temporary shelter,Assigned,7,Yes
+YP-0179,13,Kent,Some college,Unemployed,At risk of homelessness,Assigned,6,No
+YP-0180,14,Kent,Middle school,Unemployed,Stable housing,Assigned,1,No
+YP-0181,14,Sussex,Associate degree,Unemployed,Transitional housing,Not assigned,4,No
+YP-0182,18,New Castle,Associate degree,Training / internship,Stable housing,Not assigned,2,Yes
+YP-0183,16,New Castle,Associate degree,Unemployed,Stable housing,Assigned,4,Yes
+YP-0184,13,Kent,Not enrolled,Unemployed,Stable housing,Assigned,6,Yes
+YP-0185,16,Sussex,GED/HiSET,Unemployed,At risk of homelessness,Not assigned,1,No
+YP-0186,18,Sussex,Middle school,Unemployed,Stable housing,Assigned,0,No
+YP-0187,19,New Castle,High school,Training / internship,Stable housing,Assigned,0,Yes
+YP-0188,16,Kent,Some college,Unemployed,Stable housing,Assigned,2,No
+YP-0189,18,Kent,Some college,Unemployed,Couch surfing,Assigned,3,Yes
+YP-0190,15,New Castle,High school,Part-time,Couch surfing,Not assigned,7,Yes
+YP-0191,18,Kent,Middle school,Training / internship,Stable housing,Assigned,5,No
+YP-0192,13,Sussex,High school,Unemployed,Couch surfing,Assigned,2,No
+YP-0193,18,New Castle,Associate degree,Training / internship,Stable housing,Assigned,4,No
+YP-0194,14,New Castle,Middle school,Unemployed,Transitional housing,Assigned,2,Yes
+YP-0195,19,New Castle,Not enrolled,Full-time,Stable housing,Not assigned,4,Yes
+YP-0196,19,Kent,Some college,Unemployed,Stable housing,Assigned,6,No
+YP-0197,14,Kent,Associate degree,Unemployed,Stable housing,Assigned,1,No
+YP-0198,19,Sussex,Associate degree,Seasonal,Stable housing,Assigned,6,No
+YP-0199,14,New Castle,High school,Unemployed,Couch surfing,Assigned,7,No
+YP-0200,17,New Castle,GED/HiSET,Training / internship,Transitional housing,Not assigned,2,No
+YP-0201,16,New Castle,High school,Unemployed,Stable housing,Not assigned,6,Yes
+YP-0202,14,New Castle,High school,Unemployed,Stable housing,Not assigned,0,No
+YP-0203,16,Sussex,High school,Seasonal,Stable housing,Assigned,2,Yes
+YP-0204,15,New Castle,Middle school,Unemployed,At risk of homelessness,Not assigned,6,No
+YP-0205,13,New Castle,High school,Seasonal,Stable housing,Not assigned,6,No
+YP-0206,13,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,5,No
+YP-0207,19,New Castle,High school,Part-time,Stable housing,Assigned,5,No
+YP-0208,13,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,1,No
+YP-0209,13,Sussex,Some college,Unemployed,Couch surfing,Assigned,6,Yes
+YP-0210,13,New Castle,Some college,Unemployed,Transitional housing,Assigned,1,No
+YP-0211,18,New Castle,GED/HiSET,Training / internship,Stable housing,Assigned,6,Yes
+YP-0212,18,New Castle,Associate degree,Unemployed,Couch surfing,Not assigned,2,Yes
+YP-0213,19,New Castle,Associate degree,Part-time,Transitional housing,Assigned,6,No
+YP-0214,14,New Castle,Not enrolled,Part-time,At risk of homelessness,Assigned,2,Yes
+YP-0215,13,New Castle,High school,Seasonal,Stable housing,Not assigned,4,No
+YP-0216,18,New Castle,Middle school,Unemployed,At risk of homelessness,Assigned,6,No
+YP-0217,15,New Castle,GED/HiSET,Seasonal,Temporary shelter,Not assigned,4,No
+YP-0218,18,New Castle,GED/HiSET,Unemployed,Transitional housing,Assigned,1,No
+YP-0219,17,New Castle,Middle school,Part-time,Stable housing,Assigned,5,No
+YP-0220,18,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,5,No
+YP-0221,16,New Castle,High school,Unemployed,Transitional housing,Assigned,6,No
+YP-0222,19,New Castle,Associate degree,Full-time,At risk of homelessness,Assigned,5,No
+YP-0223,14,New Castle,Not enrolled,Unemployed,Couch surfing,Assigned,5,Yes
+YP-0224,16,New Castle,High school,Unemployed,Transitional housing,Assigned,5,No
+YP-0225,15,New Castle,Middle school,Training / internship,Stable housing,Assigned,4,No
+YP-0226,15,New Castle,High school,Part-time,Stable housing,Assigned,5,No
+YP-0227,13,Sussex,Middle school,Full-time,Stable housing,Not assigned,3,No
+YP-0228,19,Sussex,High school,Full-time,Temporary shelter,Assigned,3,No
+YP-0229,18,Sussex,Associate degree,Training / internship,Couch surfing,Not assigned,5,Yes
+YP-0230,19,Sussex,Middle school,Part-time,Stable housing,Assigned,4,No
+YP-0231,17,New Castle,Middle school,Part-time,Stable housing,Assigned,5,No
+YP-0232,19,New Castle,GED/HiSET,Seasonal,Stable housing,Not assigned,5,Yes
+YP-0233,17,Sussex,High school,Unemployed,Transitional housing,Assigned,5,Yes
+YP-0234,16,New Castle,Some college,Seasonal,Stable housing,Assigned,1,No
+YP-0235,18,New Castle,Middle school,Unemployed,At risk of homelessness,Not assigned,7,Yes
+YP-0236,17,Kent,High school,Unemployed,Stable housing,Assigned,4,No
+YP-0237,17,New Castle,Middle school,Unemployed,Couch surfing,Not assigned,3,No
+YP-0238,19,Kent,Not enrolled,Unemployed,At risk of homelessness,Not assigned,3,No
+YP-0239,16,New Castle,Some college,Unemployed,Stable housing,Assigned,2,No
+YP-0240,14,New Castle,Associate degree,Unemployed,Stable housing,Not assigned,1,No
+YP-0241,14,New Castle,High school,Unemployed,Stable housing,Not assigned,5,No
+YP-0242,16,New Castle,Middle school,Part-time,Stable housing,Assigned,1,No
+YP-0243,14,Sussex,Middle school,Unemployed,Stable housing,Assigned,4,No
+YP-0244,14,New Castle,High school,Seasonal,Temporary shelter,Assigned,2,No
+YP-0245,16,New Castle,High school,Unemployed,Stable housing,Assigned,3,No
+YP-0246,15,New Castle,Not enrolled,Unemployed,Stable housing,Not assigned,5,No
+YP-0247,13,New Castle,Not enrolled,Unemployed,At risk of homelessness,Not assigned,7,No
+YP-0248,13,Kent,Some college,Unemployed,Stable housing,Assigned,3,No
+YP-0249,15,Sussex,Some college,Unemployed,Stable housing,Not assigned,3,No
+YP-0250,17,New Castle,High school,Seasonal,Stable housing,Assigned,4,Yes
+YP-0251,18,Sussex,High school,Seasonal,Stable housing,Assigned,4,Yes
+YP-0252,15,Sussex,Middle school,Unemployed,Couch surfing,Not assigned,5,No
+YP-0253,17,New Castle,GED/HiSET,Full-time,Stable housing,Not assigned,2,No
+YP-0254,16,New Castle,Some college,Unemployed,At risk of homelessness,Not assigned,6,Yes
+YP-0255,18,Kent,Some college,Part-time,Temporary shelter,Assigned,2,No
+YP-0256,19,New Castle,GED/HiSET,Unemployed,Temporary shelter,Assigned,6,Yes
+YP-0257,15,New Castle,GED/HiSET,Unemployed,Temporary shelter,Assigned,7,No
+YP-0258,19,Kent,Associate degree,Full-time,Temporary shelter,Assigned,5,No
+YP-0259,17,Kent,GED/HiSET,Unemployed,Stable housing,Not assigned,2,No
+YP-0260,19,New Castle,Associate degree,Full-time,Transitional housing,Assigned,4,Yes
+YP-0261,17,Kent,High school,Unemployed,At risk of homelessness,Assigned,3,No
+YP-0262,16,New Castle,High school,Unemployed,Couch surfing,Not assigned,6,Yes
+YP-0263,18,New Castle,Some college,Unemployed,At risk of homelessness,Not assigned,7,No
+YP-0264,15,New Castle,Associate degree,Unemployed,At risk of homelessness,Assigned,6,No
+YP-0265,17,New Castle,High school,Training / internship,Temporary shelter,Assigned,5,No
+YP-0266,13,Kent,Associate degree,Seasonal,Stable housing,Assigned,0,No
+YP-0267,13,Sussex,Associate degree,Part-time,Stable housing,Assigned,1,No
+YP-0268,16,Sussex,GED/HiSET,Unemployed,Transitional housing,Assigned,3,No
+YP-0269,13,New Castle,Associate degree,Unemployed,Stable housing,Not assigned,0,No
+YP-0270,19,Sussex,Middle school,Training / internship,Stable housing,Not assigned,6,No
+YP-0271,19,New Castle,High school,Training / internship,Stable housing,Assigned,0,No
+YP-0272,16,New Castle,Associate degree,Unemployed,Stable housing,Not assigned,6,No
+YP-0273,19,Kent,Not enrolled,Part-time,Temporary shelter,Assigned,6,Yes
+YP-0274,19,New Castle,High school,Full-time,Transitional housing,Assigned,7,No
+YP-0275,16,Sussex,Some college,Unemployed,Stable housing,Assigned,1,No
+YP-0276,13,Kent,High school,Unemployed,Stable housing,Assigned,2,No
+YP-0277,13,New Castle,High school,Unemployed,Temporary shelter,Assigned,1,No
+YP-0278,18,Sussex,Some college,Training / internship,At risk of homelessness,Not assigned,6,Yes
+YP-0279,15,Sussex,High school,Unemployed,Stable housing,Assigned,1,No
+YP-0280,15,New Castle,GED/HiSET,Part-time,At risk of homelessness,Not assigned,7,No
+YP-0281,14,New Castle,Associate degree,Part-time,At risk of homelessness,Assigned,4,No
+YP-0282,17,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,4,No
+YP-0283,19,New Castle,Some college,Full-time,Temporary shelter,Not assigned,4,Yes
+YP-0284,19,Kent,Not enrolled,Full-time,Stable housing,Assigned,0,No
+YP-0285,15,New Castle,Associate degree,Unemployed,Stable housing,Assigned,1,No
+YP-0286,15,New Castle,Associate degree,Unemployed,At risk of homelessness,Not assigned,1,No
+YP-0287,15,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,5,No
+YP-0288,16,Sussex,GED/HiSET,Full-time,At risk of homelessness,Assigned,6,No
+YP-0289,14,Kent,Associate degree,Full-time,Stable housing,Not assigned,3,No
+YP-0290,14,New Castle,Not enrolled,Part-time,At risk of homelessness,Assigned,6,No
+YP-0291,19,New Castle,Middle school,Part-time,Stable housing,Assigned,5,No
+YP-0292,18,New Castle,GED/HiSET,Part-time,At risk of homelessness,Not assigned,2,Yes
+YP-0293,13,New Castle,GED/HiSET,Unemployed,Temporary shelter,Assigned,6,Yes
+YP-0294,17,Sussex,Middle school,Seasonal,Transitional housing,Assigned,3,Yes
+YP-0295,17,New Castle,High school,Part-time,Transitional housing,Not assigned,2,No
+YP-0296,18,Sussex,Some college,Unemployed,Stable housing,Assigned,4,No
+YP-0297,18,Sussex,Associate degree,Part-time,Stable housing,Not assigned,5,No
+YP-0298,15,New Castle,Associate degree,Unemployed,Stable housing,Assigned,6,No
+YP-0299,14,Sussex,High school,Full-time,Stable housing,Assigned,0,No
+YP-0300,17,New Castle,Some college,Unemployed,Stable housing,Assigned,5,Yes
+YP-0301,15,Kent,Not enrolled,Unemployed,Transitional housing,Assigned,4,No
+YP-0302,19,New Castle,Not enrolled,Part-time,Transitional housing,Not assigned,5,Yes
+YP-0303,15,Sussex,High school,Training / internship,Stable housing,Not assigned,5,Yes
+YP-0304,16,Kent,Middle school,Unemployed,Temporary shelter,Assigned,2,No
+YP-0305,16,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,4,No
+YP-0306,19,New Castle,Associate degree,Full-time,Transitional housing,Not assigned,3,No
+YP-0307,19,New Castle,Middle school,Full-time,Stable housing,Assigned,4,No
+YP-0308,14,Sussex,Middle school,Unemployed,Stable housing,Not assigned,3,No
+YP-0309,15,New Castle,High school,Part-time,Stable housing,Not assigned,5,No
+YP-0310,19,Sussex,High school,Part-time,Temporary shelter,Assigned,5,No
+YP-0311,17,New Castle,Not enrolled,Seasonal,Stable housing,Not assigned,0,No
+YP-0312,19,New Castle,Associate degree,Part-time,Temporary shelter,Assigned,5,No
+YP-0313,18,New Castle,Associate degree,Training / internship,At risk of homelessness,Assigned,1,Yes
+YP-0314,13,Kent,Not enrolled,Unemployed,Stable housing,Not assigned,0,No
+YP-0315,16,New Castle,Middle school,Unemployed,Stable housing,Assigned,1,No
+YP-0316,15,Sussex,High school,Part-time,Stable housing,Not assigned,3,No
+YP-0317,14,New Castle,High school,Unemployed,Transitional housing,Assigned,7,No
+YP-0318,16,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,5,Yes
+YP-0319,16,Sussex,Associate degree,Part-time,Couch surfing,Not assigned,1,No
+YP-0320,14,New Castle,Middle school,Seasonal,Temporary shelter,Assigned,3,Yes
+YP-0321,15,New Castle,Some college,Unemployed,Stable housing,Not assigned,2,Yes
+YP-0322,14,Sussex,Associate degree,Part-time,At risk of homelessness,Assigned,5,Yes
+YP-0323,16,Kent,Associate degree,Seasonal,Stable housing,Not assigned,1,No
+YP-0324,13,New Castle,Some college,Part-time,Stable housing,Assigned,1,No
+YP-0325,19,Sussex,Some college,Training / internship,Stable housing,Not assigned,0,No
+YP-0326,16,Kent,GED/HiSET,Unemployed,Couch surfing,Assigned,2,No
+YP-0327,13,Kent,Some college,Unemployed,Stable housing,Assigned,2,Yes
+YP-0328,18,New Castle,Middle school,Full-time,Stable housing,Assigned,0,No
+YP-0329,19,New Castle,High school,Unemployed,Stable housing,Assigned,4,No
+YP-0330,13,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,2,No
+YP-0331,16,New Castle,GED/HiSET,Part-time,Temporary shelter,Assigned,2,No
+YP-0332,16,New Castle,Middle school,Unemployed,Stable housing,Assigned,0,Yes
+YP-0333,15,Kent,GED/HiSET,Part-time,Stable housing,Not assigned,5,No
+YP-0334,14,New Castle,GED/HiSET,Unemployed,Stable housing,Not assigned,2,No
+YP-0335,19,New Castle,High school,Full-time,Stable housing,Not assigned,5,No
+YP-0336,15,New Castle,Some college,Seasonal,Stable housing,Assigned,3,No
+YP-0337,18,Sussex,Associate degree,Part-time,Couch surfing,Assigned,4,No
+YP-0338,15,New Castle,Not enrolled,Seasonal,Stable housing,Not assigned,1,No
+YP-0339,18,Sussex,GED/HiSET,Training / internship,Stable housing,Not assigned,6,No
+YP-0340,19,Kent,GED/HiSET,Full-time,Stable housing,Assigned,2,No
+YP-0341,19,Sussex,GED/HiSET,Unemployed,At risk of homelessness,Assigned,4,No
+YP-0342,19,New Castle,Associate degree,Full-time,Stable housing,Not assigned,5,No
+YP-0343,18,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,1,No
+YP-0344,18,New Castle,Associate degree,Part-time,At risk of homelessness,Assigned,7,No
+YP-0345,15,New Castle,Middle school,Unemployed,Stable housing,Assigned,4,Yes
+YP-0346,16,New Castle,Associate degree,Unemployed,Stable housing,Assigned,0,No
+YP-0347,13,New Castle,Not enrolled,Part-time,Temporary shelter,Assigned,3,No
+YP-0348,16,New Castle,High school,Unemployed,Stable housing,Not assigned,2,Yes
+YP-0349,18,Sussex,Not enrolled,Unemployed,Stable housing,Assigned,6,Yes
+YP-0350,14,New Castle,Some college,Unemployed,Stable housing,Assigned,3,Yes
+YP-0351,14,New Castle,Middle school,Unemployed,Stable housing,Assigned,4,No
+YP-0352,16,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,5,No
+YP-0353,13,New Castle,Some college,Unemployed,Stable housing,Assigned,2,No
+YP-0354,18,New Castle,High school,Part-time,Couch surfing,Assigned,3,No
+YP-0355,14,New Castle,Associate degree,Part-time,Stable housing,Assigned,0,No
+YP-0356,14,New Castle,High school,Unemployed,Stable housing,Assigned,3,No
+YP-0357,16,New Castle,GED/HiSET,Unemployed,Couch surfing,Not assigned,6,No
+YP-0358,14,New Castle,GED/HiSET,Unemployed,Stable housing,Not assigned,4,Yes
+YP-0359,13,New Castle,GED/HiSET,Unemployed,Transitional housing,Not assigned,5,No
+YP-0360,16,Kent,GED/HiSET,Part-time,Stable housing,Assigned,4,Yes
+YP-0361,15,Kent,Not enrolled,Unemployed,Stable housing,Assigned,3,No
+YP-0362,16,New Castle,Some college,Unemployed,Couch surfing,Assigned,5,No
+YP-0363,19,Sussex,Not enrolled,Seasonal,Stable housing,Assigned,3,Yes
+YP-0364,19,New Castle,Middle school,Part-time,At risk of homelessness,Assigned,3,No
+YP-0365,19,Sussex,Not enrolled,Seasonal,Stable housing,Not assigned,4,No
+YP-0366,17,New Castle,Associate degree,Part-time,Couch surfing,Not assigned,7,Yes
+YP-0367,15,New Castle,Some college,Unemployed,Stable housing,Assigned,5,No
+YP-0368,19,Sussex,Some college,Training / internship,Temporary shelter,Assigned,7,No
+YP-0369,15,New Castle,Associate degree,Unemployed,At risk of homelessness,Assigned,6,No
+YP-0370,19,New Castle,Associate degree,Part-time,Stable housing,Assigned,5,No
+YP-0371,18,New Castle,Not enrolled,Part-time,Temporary shelter,Not assigned,3,No
+YP-0372,17,Kent,Not enrolled,Seasonal,Transitional housing,Assigned,4,No
+YP-0373,19,New Castle,Not enrolled,Seasonal,Stable housing,Not assigned,6,Yes
+YP-0374,19,Sussex,High school,Part-time,Couch surfing,Assigned,4,No
+YP-0375,19,Sussex,Not enrolled,Unemployed,Couch surfing,Not assigned,1,Yes
+YP-0376,16,Sussex,GED/HiSET,Unemployed,At risk of homelessness,Assigned,6,No
+YP-0377,15,New Castle,Middle school,Seasonal,At risk of homelessness,Assigned,3,Yes
+YP-0378,18,Kent,Middle school,Unemployed,Couch surfing,Not assigned,7,Yes
+YP-0379,18,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,1,No
+YP-0380,13,New Castle,Associate degree,Unemployed,Stable housing,Not assigned,5,Yes
+YP-0381,16,Kent,Not enrolled,Part-time,Stable housing,Assigned,2,Yes
+YP-0382,19,Kent,Middle school,Full-time,Temporary shelter,Assigned,5,Yes
+YP-0383,16,New Castle,High school,Part-time,Couch surfing,Assigned,4,No
+YP-0384,14,Sussex,Not enrolled,Seasonal,Stable housing,Assigned,5,No
+YP-0385,15,Kent,Middle school,Unemployed,Couch surfing,Assigned,5,No
+YP-0386,19,New Castle,Associate degree,Unemployed,Transitional housing,Not assigned,2,No
+YP-0387,18,New Castle,GED/HiSET,Unemployed,Stable housing,Not assigned,1,No
+YP-0388,16,New Castle,Associate degree,Unemployed,Stable housing,Not assigned,2,No
+YP-0389,19,Kent,Some college,Full-time,Stable housing,Assigned,3,No
+YP-0390,13,New Castle,Some college,Unemployed,Stable housing,Assigned,0,No
+YP-0391,15,New Castle,Associate degree,Part-time,Transitional housing,Assigned,4,Yes
+YP-0392,17,New Castle,Middle school,Unemployed,Stable housing,Assigned,1,No
+YP-0393,15,Kent,GED/HiSET,Unemployed,Transitional housing,Assigned,6,Yes
+YP-0394,18,New Castle,Middle school,Unemployed,Stable housing,Assigned,3,No
+YP-0395,18,New Castle,Associate degree,Full-time,Stable housing,Assigned,1,No
+YP-0396,15,Sussex,Some college,Unemployed,Transitional housing,Assigned,3,Yes
+YP-0397,15,New Castle,Associate degree,Seasonal,Transitional housing,Assigned,7,No
+YP-0398,15,New Castle,Associate degree,Training / internship,Couch surfing,Assigned,5,No
+YP-0399,17,New Castle,Middle school,Unemployed,Stable housing,Assigned,4,No
+YP-0400,18,New Castle,Some college,Unemployed,At risk of homelessness,Assigned,1,No
+YP-0401,14,New Castle,Middle school,Seasonal,At risk of homelessness,Assigned,6,No
+YP-0402,15,New Castle,Middle school,Unemployed,Temporary shelter,Assigned,1,No
+YP-0403,18,New Castle,Not enrolled,Unemployed,Transitional housing,Not assigned,4,Yes
+YP-0404,15,Sussex,High school,Unemployed,Couch surfing,Assigned,2,No
+YP-0405,18,Kent,Some college,Unemployed,Stable housing,Not assigned,6,No
+YP-0406,17,Sussex,Middle school,Unemployed,At risk of homelessness,Assigned,5,No
+YP-0407,13,New Castle,High school,Unemployed,Couch surfing,Not assigned,6,No
+YP-0408,14,New Castle,GED/HiSET,Unemployed,Stable housing,Not assigned,5,Yes
+YP-0409,14,New Castle,Some college,Unemployed,At risk of homelessness,Assigned,6,Yes
+YP-0410,14,New Castle,Associate degree,Part-time,Stable housing,Assigned,3,No
+YP-0411,15,New Castle,High school,Full-time,At risk of homelessness,Assigned,7,No
+YP-0412,15,New Castle,Middle school,Unemployed,Stable housing,Not assigned,4,Yes
+YP-0413,16,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,6,Yes
+YP-0414,15,New Castle,Not enrolled,Unemployed,Transitional housing,Assigned,6,No
+YP-0415,19,Kent,High school,Unemployed,Temporary shelter,Not assigned,4,No
+YP-0416,15,New Castle,Middle school,Unemployed,Stable housing,Assigned,5,No
+YP-0417,13,Sussex,Middle school,Unemployed,Stable housing,Not assigned,1,Yes
+YP-0418,15,New Castle,Associate degree,Unemployed,Couch surfing,Assigned,3,No
+YP-0419,13,New Castle,Middle school,Seasonal,Stable housing,Assigned,6,No
+YP-0420,13,New Castle,GED/HiSET,Unemployed,At risk of homelessness,Assigned,6,No
+YP-0421,18,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,2,No
+YP-0422,17,New Castle,Some college,Part-time,Couch surfing,Assigned,5,No
+YP-0423,16,Sussex,Middle school,Unemployed,Couch surfing,Not assigned,2,No
+YP-0424,19,New Castle,Not enrolled,Training / internship,Transitional housing,Assigned,5,No
+YP-0425,17,Sussex,Some college,Unemployed,Stable housing,Assigned,4,Yes
+YP-0426,19,New Castle,High school,Unemployed,At risk of homelessness,Assigned,7,No
+YP-0427,14,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,6,No
+YP-0428,14,New Castle,Some college,Part-time,Transitional housing,Assigned,7,No
+YP-0429,14,Kent,Some college,Unemployed,Temporary shelter,Assigned,5,Yes
+YP-0430,17,New Castle,Some college,Unemployed,At risk of homelessness,Not assigned,7,No
+YP-0431,15,New Castle,Middle school,Unemployed,Stable housing,Assigned,1,Yes
+YP-0432,15,New Castle,Some college,Unemployed,Stable housing,Not assigned,6,No
+YP-0433,13,New Castle,Middle school,Unemployed,At risk of homelessness,Not assigned,7,No
+YP-0434,13,New Castle,High school,Part-time,Couch surfing,Assigned,3,No
+YP-0435,14,Kent,Associate degree,Seasonal,Transitional housing,Not assigned,6,No
+YP-0436,17,New Castle,Associate degree,Seasonal,Couch surfing,Assigned,6,No
+YP-0437,15,New Castle,Associate degree,Unemployed,Stable housing,Not assigned,5,No
+YP-0438,19,New Castle,Some college,Unemployed,Couch surfing,Not assigned,5,Yes
+YP-0439,16,Sussex,Middle school,Unemployed,Stable housing,Assigned,2,Yes
+YP-0440,13,New Castle,Associate degree,Unemployed,Temporary shelter,Assigned,1,Yes
+YP-0441,13,New Castle,High school,Unemployed,Stable housing,Assigned,3,No
+YP-0442,14,Sussex,GED/HiSET,Unemployed,Stable housing,Assigned,0,No
+YP-0443,17,New Castle,Associate degree,Seasonal,Stable housing,Assigned,6,No
+YP-0444,15,New Castle,High school,Training / internship,Stable housing,Assigned,3,Yes
+YP-0445,13,Kent,High school,Unemployed,Couch surfing,Assigned,1,No
+YP-0446,17,New Castle,GED/HiSET,Unemployed,Stable housing,Assigned,1,No
+YP-0447,18,New Castle,Some college,Unemployed,Stable housing,Assigned,0,No
+YP-0448,16,Kent,Middle school,Unemployed,Stable housing,Assigned,6,No
+YP-0449,14,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,0,No
+YP-0450,19,New Castle,GED/HiSET,Full-time,At risk of homelessness,Assigned,6,No
+YP-0451,16,New Castle,High school,Unemployed,Stable housing,Assigned,2,Yes
+YP-0452,13,New Castle,Middle school,Part-time,Couch surfing,Assigned,3,No
+YP-0453,19,New Castle,Some college,Part-time,Stable housing,Assigned,4,No
+YP-0454,19,Kent,GED/HiSET,Full-time,Stable housing,Assigned,3,No
+YP-0455,17,Sussex,Some college,Training / internship,Transitional housing,Assigned,5,Yes
+YP-0456,16,New Castle,Middle school,Seasonal,Stable housing,Assigned,1,Yes
+YP-0457,18,Sussex,GED/HiSET,Unemployed,Transitional housing,Assigned,5,Yes
+YP-0458,19,New Castle,Not enrolled,Unemployed,Couch surfing,Assigned,7,Yes
+YP-0459,19,New Castle,Not enrolled,Seasonal,Couch surfing,Assigned,4,Yes
+YP-0460,17,New Castle,Some college,Part-time,At risk of homelessness,Assigned,1,No
+YP-0461,15,Kent,Some college,Seasonal,At risk of homelessness,Assigned,6,No
+YP-0462,13,New Castle,Middle school,Unemployed,Stable housing,Assigned,5,No
+YP-0463,15,Sussex,Associate degree,Unemployed,Temporary shelter,Not assigned,3,Yes
+YP-0464,15,New Castle,High school,Unemployed,Stable housing,Not assigned,0,No
+YP-0465,15,New Castle,Associate degree,Unemployed,Transitional housing,Assigned,4,No
+YP-0466,16,Sussex,Middle school,Seasonal,Stable housing,Assigned,4,No
+YP-0467,17,Sussex,Middle school,Unemployed,Temporary shelter,Assigned,7,No
+YP-0468,13,New Castle,Middle school,Unemployed,Transitional housing,Not assigned,2,Yes
+YP-0469,15,New Castle,Associate degree,Unemployed,Stable housing,Assigned,3,No
+YP-0470,13,New Castle,Middle school,Unemployed,Couch surfing,Assigned,7,No
+YP-0471,15,New Castle,Middle school,Part-time,Stable housing,Not assigned,0,No
+YP-0472,14,New Castle,Some college,Part-time,Stable housing,Assigned,1,No
+YP-0473,16,New Castle,Some college,Unemployed,Transitional housing,Not assigned,1,No
+YP-0474,14,Kent,Some college,Part-time,Stable housing,Assigned,2,No
+YP-0475,15,Kent,GED/HiSET,Seasonal,At risk of homelessness,Assigned,2,No
+YP-0476,19,Sussex,Some college,Part-time,Stable housing,Assigned,5,No
+YP-0477,17,Sussex,Associate degree,Part-time,Stable housing,Not assigned,3,Yes
+YP-0478,18,New Castle,High school,Seasonal,Stable housing,Not assigned,5,No
+YP-0479,19,New Castle,Middle school,Training / internship,Transitional housing,Not assigned,5,No
+YP-0480,14,Kent,Associate degree,Unemployed,Stable housing,Assigned,3,No
+YP-0481,17,New Castle,Associate degree,Training / internship,Transitional housing,Assigned,6,Yes
+YP-0482,19,Kent,GED/HiSET,Training / internship,Temporary shelter,Assigned,7,Yes
+YP-0483,17,Kent,Middle school,Unemployed,Stable housing,Not assigned,5,No
+YP-0484,14,New Castle,Associate degree,Seasonal,Couch surfing,Assigned,2,No
+YP-0485,19,Sussex,High school,Part-time,Couch surfing,Assigned,1,No
+YP-0486,17,Kent,Some college,Training / internship,Stable housing,Not assigned,4,Yes
+YP-0487,17,Sussex,High school,Part-time,At risk of homelessness,Assigned,2,No
+YP-0488,16,Sussex,Middle school,Unemployed,Temporary shelter,Not assigned,4,No
+YP-0489,15,Kent,Associate degree,Unemployed,Stable housing,Assigned,6,Yes
+YP-0490,16,New Castle,Not enrolled,Unemployed,Stable housing,Assigned,3,No
+YP-0491,13,New Castle,Some college,Unemployed,Stable housing,Assigned,2,No
+YP-0492,13,New Castle,Associate degree,Unemployed,Temporary shelter,Assigned,3,No
+YP-0493,17,New Castle,Some college,Unemployed,Stable housing,Assigned,2,No
+YP-0494,17,New Castle,High school,Part-time,Temporary shelter,Assigned,4,No
+YP-0495,19,Kent,GED/HiSET,Unemployed,Stable housing,Not assigned,1,No
+YP-0496,14,New Castle,Not enrolled,Unemployed,Couch surfing,Assigned,6,Yes
+YP-0497,13,New Castle,Some college,Training / internship,Couch surfing,Assigned,1,Yes
+YP-0498,16,Kent,GED/HiSET,Unemployed,Stable housing,Not assigned,1,No
+YP-0499,15,New Castle,GED/HiSET,Unemployed,Couch surfing,Assigned,5,No
+YP-0500,13,Kent,Some college,Part-time,Stable housing,Assigned,0,No
