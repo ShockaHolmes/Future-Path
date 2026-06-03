@@ -155,6 +155,12 @@ AI Assistant intake UI:
 streamlit run dashboard/ai_assistant.py
 ```
 
+Caseworker workflow dashboard:
+
+```bash
+streamlit run dashboard/caseworker_dashboard.py
+```
+
 ### 5. Migrate Older Databases (If Needed)
 
 If your local database was created with an older schema and dashboard pages fail due to missing columns, run:
