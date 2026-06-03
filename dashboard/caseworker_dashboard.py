@@ -713,15 +713,36 @@ def load_high_risk_alerts(connection: sqlite3.Connection, caseworker_id: str) ->
                 FROM risk_scores
             ) ranked
             WHERE rn = 1
+        ),
+        latest_intake AS (
+            SELECT youth_id, top_need_category
+            FROM (
+                SELECT
+                    youth_id,
+                    top_need_category,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY youth_id
+                        ORDER BY COALESCE(completed_at, started_at, '') DESC, intake_session_id DESC
+                    ) AS rn
+                FROM intake_sessions
+                WHERE profile_type = 'youth'
+            ) ranked
+            WHERE rn = 1
         )
         SELECT
             ca.youth_id,
+            yp.age,
+            yp.housing,
+            yp.employment,
             lr.risk_level,
             lr.overall_risk_score,
             ca.case_status,
-            COALESCE(ca.next_follow_up_date, '') AS next_follow_up_date
+            COALESCE(ca.next_follow_up_date, '') AS next_follow_up_date,
+            COALESCE(li.top_need_category, 'not_set') AS top_need_category
         FROM case_assignments ca
         JOIN latest_risk lr ON lr.youth_id = ca.youth_id
+        LEFT JOIN youth_profiles yp ON yp.youth_id = ca.youth_id
+        LEFT JOIN latest_intake li ON li.youth_id = ca.youth_id
         WHERE ca.caseworker_id = ?
           AND ca.case_status IN ('assigned', 'in_progress', 'on_hold')
           AND lr.risk_level = 'High'
@@ -732,12 +753,397 @@ def load_high_risk_alerts(connection: sqlite3.Connection, caseworker_id: str) ->
     )
 
 
+def inject_caseworker_dashboard_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+
+        .stApp {
+            background:
+                radial-gradient(circle at 8% 4%, rgba(15, 91, 215, 0.10) 0%, rgba(15, 91, 215, 0.0) 35%),
+                radial-gradient(circle at 92% 9%, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.0) 30%),
+                linear-gradient(180deg, #f9fbff 0%, #f4f8ff 100%);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #0b1b51;
+        }
+
+        .main .block-container {
+            padding-top: 1.4rem;
+            max-width: 1220px;
+        }
+
+        .cw-step-banner {
+            border: 1px solid #cbdcff;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #f6faff 0%, #f3f8ff 100%);
+            padding: 10px 16px;
+            margin-bottom: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cw-step-title {
+            font-family: 'Manrope', sans-serif;
+            color: #122f82;
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Manrope', sans-serif !important;
+            color: #102a78;
+        }
+
+        .cw-shell {
+            border: 1px solid #d7e4ff;
+            border-radius: 22px;
+            background: linear-gradient(180deg, #ffffff 0%, #fdfefe 100%);
+            box-shadow: 0 14px 38px rgba(17, 61, 156, 0.07);
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .cw-brandbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2ebff;
+        }
+
+        .cw-brand-left {
+            font-family: 'Manrope', sans-serif;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+            color: #12389f;
+            font-size: 1.45rem;
+        }
+
+        .cw-brand-right {
+            text-align: right;
+            color: #1c367f;
+            font-size: 0.92rem;
+            line-height: 1.3;
+        }
+
+        .cw-metric-card {
+            border: 1px solid #e1eaff;
+            border-radius: 14px;
+            background: #fbfdff;
+            padding: 14px 14px 12px 14px;
+            min-height: 110px;
+        }
+
+        .cw-metric-label {
+            color: #31519f;
+            font-weight: 700;
+            font-size: 0.86rem;
+            line-height: 1.3;
+        }
+
+        .cw-metric-value {
+            color: #0f1f62;
+            font-family: 'Manrope', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-top: 7px;
+        }
+
+        .cw-metric-link {
+            margin-top: 8px;
+            color: #2a56c1;
+            font-size: 0.84rem;
+            font-weight: 700;
+        }
+
+        .cw-alert-wrap {
+            border: 1px solid #ffd3d3;
+            background: linear-gradient(180deg, #fff9f9 0%, #fffefe 100%);
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 0.8rem;
+        }
+
+        .cw-alert-title {
+            color: #c02132;
+            font-family: 'Manrope', sans-serif;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .cw-section-card {
+            border: 1px solid #dee8ff;
+            border-radius: 16px;
+            background: #ffffff;
+            padding: 12px;
+        }
+
+        .cw-table-subtle {
+            color: #2d4f9a;
+            font-size: 0.86rem;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .cw-bullets {
+            margin: 6px 0 0 0;
+            padding-left: 18px;
+            color: #7b2230;
+            font-size: 0.92rem;
+        }
+
+        .cw-activity-item {
+            border-bottom: 1px solid #edf2ff;
+            padding: 8px 2px;
+        }
+
+        .cw-activity-item:last-child {
+            border-bottom: 0;
+        }
+
+        .cw-activity-title {
+            color: #1a347f;
+            font-size: 0.93rem;
+            font-weight: 600;
+        }
+
+        .cw-activity-meta {
+            color: #5f71aa;
+            font-size: 0.81rem;
+        }
+
+        .stDataFrame {
+            border: 1px solid #e5edff;
+            border-radius: 14px;
+        }
+
+        [data-testid="stDataFrame"] {
+            --gdg-bg-cell: #ffffff;
+            --gdg-bg-cell-medium: #f7faff;
+            --gdg-bg-header: #edf3ff;
+            --gdg-bg-header-has-focus: #e6eeff;
+            --gdg-border-color: #dce7ff;
+            --gdg-color: #102a78;
+            --gdg-text-dark: #102a78;
+            --gdg-text-medium: #274594;
+            --gdg-text-light: #5d75b1;
+            --gdg-accent-color: #2f5dc8;
+        }
+
+        [data-testid="stDataFrame"] canvas {
+            background: #ffffff !important;
+        }
+
+        [data-testid="stDataFrame"] [role="grid"] {
+            background: #ffffff !important;
+        }
+
+        .stDataFrame [role="grid"],
+        .stDataFrame [role="columnheader"],
+        .stDataFrame [role="gridcell"] {
+            color: #0f225f !important;
+        }
+
+        .stDataFrame [role="columnheader"] {
+            background-color: #edf3ff !important;
+            font-weight: 700 !important;
+        }
+
+        .stDataFrame [role="gridcell"] {
+            background-color: #ffffff !important;
+        }
+
+        .stSelectbox label,
+        .stMultiSelect label,
+        .stDateInput label,
+        .stTextInput label,
+        .stTextArea label,
+        .stCheckbox label,
+        .stNumberInput label,
+        .stRadio label {
+            color: #233e86 !important;
+            font-weight: 700 !important;
+        }
+
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="textarea"] > div {
+            background: #ffffff !important;
+            border: 1px solid #d4e1ff !important;
+            color: #122d79 !important;
+        }
+
+        div[data-baseweb="select"] *,
+        div[data-baseweb="input"] input,
+        div[data-baseweb="textarea"] textarea {
+            color: #122d79 !important;
+            opacity: 1 !important;
+        }
+
+        .stButton > button {
+            background: #f3f7ff !important;
+            color: #14388f !important;
+            border: 1px solid #cbd8f8 !important;
+            font-weight: 700 !important;
+        }
+
+        .stButton > button:hover {
+            background: #e7efff !important;
+            color: #102f84 !important;
+        }
+
+        .stButton > button[kind="primary"] {
+            background: #ff4a53 !important;
+            color: #ffffff !important;
+            border-color: #ff4a53 !important;
+        }
+
+        .stButton > button[kind="primary"]:hover {
+            background: #ef3b45 !important;
+            color: #ffffff !important;
+        }
+
+        .stCaption,
+        .stMarkdown p,
+        .stMarkdown li,
+        .stText {
+            color: #1c367f !important;
+        }
+
+        [data-testid="stAlert"] *,
+        [data-testid="stMetricValue"] *,
+        [data-testid="stMetricLabel"] * {
+            color: #143681 !important;
+        }
+
+        .stSelectbox div[data-baseweb="select"] span,
+        .stMultiSelect div[data-baseweb="select"] span {
+            color: #122d79 !important;
+            opacity: 1 !important;
+        }
+
+        .stSidebar,
+        .stSidebar * {
+            color: #173775 !important;
+        }
+
+        @media (max-width: 920px) {
+            .cw-brandbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+
+            .cw-brand-right {
+                text-align: left;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def load_youth_names(connection: sqlite3.Connection, youth_ids: list[str]) -> dict[str, str]:
+    if not youth_ids or not table_exists(connection, "caseworker_youth"):
+        return {}
+
+    placeholders = ",".join("?" for _ in youth_ids)
+    names_df = pd.read_sql_query(
+        f"""
+        SELECT youth_id, first_name, last_name
+        FROM caseworker_youth
+        WHERE youth_id IN ({placeholders})
+        """,
+        connection,
+        params=youth_ids,
+    )
+
+    if names_df.empty:
+        return {}
+
+    names_df["display_name"] = (
+        names_df["first_name"].fillna("").astype(str).str.strip()
+        + " "
+        + names_df["last_name"].fillna("").astype(str).str.strip()
+    ).str.strip()
+    names_df["display_name"] = names_df["display_name"].replace("", pd.NA).fillna(names_df["youth_id"].astype(str))
+    return dict(zip(names_df["youth_id"].astype(str), names_df["display_name"]))
+
+
+def load_recent_case_activity(connection: sqlite3.Connection, caseworker_id: str, limit: int = 8) -> pd.DataFrame:
+    return pd.read_sql_query(
+        """
+        SELECT youth_id, event_type, details, event_time
+        FROM (
+            SELECT
+                youth_id,
+                'Case note added' AS event_type,
+                COALESCE(note_text, '') AS details,
+                created_at AS event_time
+            FROM case_notes
+            WHERE caseworker_id = ?
+
+            UNION ALL
+
+            SELECT
+                youth_id,
+                'Follow-up ' || COALESCE(follow_up_status, 'scheduled') AS event_type,
+                COALESCE(details, '') AS details,
+                created_at AS event_time
+            FROM follow_ups
+            WHERE caseworker_id = ?
+
+            UNION ALL
+
+            SELECT
+                youth_id,
+                'Case assigned' AS event_type,
+                'Priority: ' || COALESCE(priority_level, 'Medium') AS details,
+                assigned_at AS event_time
+            FROM case_assignments
+            WHERE caseworker_id = ?
+        ) events
+        ORDER BY COALESCE(event_time, '') DESC
+        LIMIT ?
+        """,
+        connection,
+        params=[caseworker_id, caseworker_id, caseworker_id, limit],
+    )
+
+
+def format_date_label(value: object) -> str:
+    timestamp = pd.to_datetime(value, errors="coerce")
+    if pd.isna(timestamp):
+        return "-"
+    return timestamp.strftime("%b %-d, %Y")
+
+
+def estimate_transition_date(age: object) -> str:
+    age_number = pd.to_numeric(age, errors="coerce")
+    if pd.isna(age_number):
+        return "-"
+
+    years_to_18 = max(0.0, 18.0 - float(age_number))
+    estimated = pd.Timestamp.today() + pd.to_timedelta(int(round(years_to_18 * 365.25)), unit="D")
+    return estimated.strftime("%b %-d, %Y")
+
+
 def render() -> None:
     st.set_page_config(page_title="Future Path Caseworker Dashboard", page_icon="FP", layout="wide")
-    st.title("Future Path Caseworker Dashboard")
-    st.caption(
-        "View available cases, accept assignments, review AI Assistant results, assign resources, and track youth progress."
+    inject_caseworker_dashboard_styles()
+    st.markdown(
+        """
+        <div class="cw-step-banner">
+            <span class="cw-step-title">Caseworker Dashboard</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
+    st.caption("Monitor youth caseload, respond to high-risk alerts, and manage daily follow-ups.")
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
     if not db_path.exists():
@@ -839,31 +1245,155 @@ def render() -> None:
         available_df = load_available_cases(connection)
         my_cases_df = load_my_assigned_cases(connection, caseworker_id)
         alerts_df = load_high_risk_alerts(connection, caseworker_id)
+        all_youth_ids = sorted(
+            set(available_df.get("youth_id", pd.Series(dtype=str)).astype(str).tolist())
+            | set(my_cases_df.get("youth_id", pd.Series(dtype=str)).astype(str).tolist())
+            | set(alerts_df.get("youth_id", pd.Series(dtype=str)).astype(str).tolist())
+        )
+        youth_name_map = load_youth_names(connection, all_youth_ids)
+        recent_activity_df = load_recent_case_activity(connection, caseworker_id)
 
     if synced_cases > 0:
         st.info(f"{synced_cases} case(s) moved to in_progress because AI Intake was completed.")
 
-    due_followups_count = 0
+    due_followups_this_week = 0
+    aging_out_count = 0
     if not my_cases_df.empty and "next_follow_up_date" in my_cases_df.columns:
         follow_up_dates = pd.to_datetime(my_cases_df["next_follow_up_date"], errors="coerce")
         today_ts = pd.Timestamp.today().normalize()
-        due_followups_count = int((follow_up_dates.dt.normalize().le(today_ts)).fillna(False).sum())
+        week_end = today_ts + pd.Timedelta(days=7)
+        due_followups_this_week = int(
+            (follow_up_dates.dt.normalize().between(today_ts, week_end, inclusive="both")).fillna(False).sum()
+        )
+
+    if not my_cases_df.empty and "age" in my_cases_df.columns:
+        aging_out_count = int((pd.to_numeric(my_cases_df["age"], errors="coerce") >= 17).fillna(False).sum())
+
+    st.markdown(
+        f"""
+        <div class="cw-shell">
+            <div class="cw-brandbar">
+                <div class="cw-brand-left">Future Path</div>
+                <div class="cw-brand-right">
+                    <div><strong>{active_caseworker_name or caseworker_id}</strong></div>
+                    <div>Caseworker</div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Available Cases", f"{len(available_df):,}")
-    c2.metric("My Assigned Cases", f"{len(my_cases_df):,}")
-    c3.metric("High-Risk Alerts", f"{len(alerts_df):,}")
-    c4.metric("Follow-Ups Due", f"{due_followups_count:,}")
+    with c1:
+        st.markdown(
+            f"""
+            <div class="cw-metric-card">
+                <div class="cw-metric-label">Assigned Youth</div>
+                <div class="cw-metric-value">{len(my_cases_df):,}</div>
+                <div class="cw-metric-link">View all</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown(
+            f"""
+            <div class="cw-metric-card">
+                <div class="cw-metric-label">High-Risk Cases</div>
+                <div class="cw-metric-value">{len(alerts_df):,}</div>
+                <div class="cw-metric-link">View alerts</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c3:
+        st.markdown(
+            f"""
+            <div class="cw-metric-card">
+                <div class="cw-metric-label">Aging Out in 6 Months</div>
+                <div class="cw-metric-value">{aging_out_count:,}</div>
+                <div class="cw-metric-link">View list</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c4:
+        st.markdown(
+            f"""
+            <div class="cw-metric-card">
+                <div class="cw-metric-label">Follow-ups Due This Week</div>
+                <div class="cw-metric-value">{due_followups_this_week:,}</div>
+                <div class="cw-metric-link">View tasks</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     st.divider()
-    left, right = st.columns([1.2, 1])
+    left, right = st.columns([1.55, 1])
 
     with left:
-        st.subheader("Available Cases")
+        st.markdown("### High-Risk Alerts")
+        if alerts_df.empty:
+            st.success("No high-risk alerts in your active caseload.")
+        else:
+            top_alert = alerts_df.iloc[0]
+            alert_name = youth_name_map.get(str(top_alert["youth_id"]), str(top_alert["youth_id"]))
+            alert_items: list[str] = []
+
+            housing_value = str(top_alert.get("housing", ""))
+            employment_value = str(top_alert.get("employment", ""))
+            if housing_value and housing_value != "Stable housing":
+                alert_items.append(f"Housing status: {housing_value}")
+            if employment_value == "Unemployed":
+                alert_items.append("Needs employment planning support")
+            if str(top_alert.get("top_need_category", "not_set")) not in {"", "not_set"}:
+                alert_items.append(f"Top need category: {top_alert['top_need_category']}")
+            if str(top_alert.get("next_follow_up_date", "")).strip() == "":
+                alert_items.append("No follow-up date scheduled")
+
+            if not alert_items:
+                alert_items.append("Priority review recommended based on latest risk score")
+
+            st.markdown(
+                f"""
+                <div class="cw-alert-wrap">
+                    <div class="cw-alert-title">{alert_name} ({top_alert['youth_id']})</div>
+                    <div>Age: {int(top_alert['age']) if pd.notna(top_alert.get('age')) else '-'} | Risk score: {float(top_alert['overall_risk_score']) * 100:.1f}%</div>
+                    <ul class="cw-bullets">
+                        {''.join(f'<li>{item}</li>' for item in alert_items[:4])}
+                    </ul>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if st.button("Open Top Alert Case", width="stretch", key="open_top_alert_case"):
+                st.session_state["selected_youth_id"] = str(top_alert["youth_id"])
+                st.rerun()
+
+    with right:
+        st.markdown("### Available Cases")
         if available_df.empty:
             st.info("No unassigned cases at this time.")
         else:
-            st.dataframe(available_df, hide_index=True, width="stretch")
+            available_preview = available_df.copy()
+            available_preview["youth_name"] = available_preview["youth_id"].astype(str).map(youth_name_map)
+            available_preview["youth_name"] = available_preview["youth_name"].fillna(available_preview["youth_id"])
+            available_preview = available_preview.rename(
+                columns={
+                    "youth_name": "Youth",
+                    "risk_level": "Risk",
+                    "top_need_category": "Top Need",
+                    "county": "County",
+                }
+            )
+            st.dataframe(
+                available_preview[["Youth", "Risk", "Top Need", "County"]].head(8),
+                hide_index=True,
+                width="stretch",
+            )
             youth_choices = available_df["youth_id"].astype(str).tolist()
             ac1, ac2, ac3 = st.columns([2, 1, 1])
             youth_to_accept = ac1.selectbox("Select Case To Accept", youth_choices)
@@ -876,30 +1406,90 @@ def render() -> None:
                 st.success(f"Case accepted: {youth_to_accept}")
                 st.rerun()
 
-    with right:
-        st.subheader("High-Risk Alerts")
-        if alerts_df.empty:
-            st.success("No high-risk alerts in your active caseload.")
-        else:
-            st.dataframe(alerts_df, hide_index=True, width="stretch")
-
     st.divider()
-    st.subheader("My Assigned Cases")
+    st.subheader("Assigned Youth")
     if my_cases_df.empty:
         st.info("You do not have any active assigned cases yet.")
         return
 
-    st.dataframe(my_cases_df, hide_index=True, width="stretch")
+    assigned_view = my_cases_df.copy()
+    assigned_view["Youth"] = assigned_view["youth_id"].astype(str).map(youth_name_map).fillna(assigned_view["youth_id"])
+    assigned_view["Age"] = pd.to_numeric(assigned_view["age"], errors="coerce").apply(
+        lambda value: f"{int(value)}y" if pd.notna(value) else "-"
+    )
+    assigned_view["Risk Level"] = assigned_view["risk_level"].astype(str)
+    assigned_view["Transition Date"] = assigned_view["age"].apply(estimate_transition_date)
+    assigned_view["Next Follow-up"] = assigned_view["next_follow_up_date"].apply(format_date_label)
+    st.markdown('<div class="cw-section-card">', unsafe_allow_html=True)
+    st.dataframe(
+        assigned_view[["Youth", "Age", "Risk Level", "Transition Date", "Next Follow-up"]],
+        hide_index=True,
+        width="stretch",
+    )
+    st.markdown('<div class="cw-table-subtle">View all assigned youth</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.divider()
+    activity_col, quick_actions_col = st.columns([1.1, 0.9])
+
+    with activity_col:
+        st.subheader("Recent Case Activity")
+        st.markdown('<div class="cw-section-card">', unsafe_allow_html=True)
+        if recent_activity_df.empty:
+            st.info("No recent case activity recorded yet.")
+        else:
+            for _, activity in recent_activity_df.iterrows():
+                activity_name = youth_name_map.get(str(activity["youth_id"]), str(activity["youth_id"]))
+                details = str(activity["details"] or "").strip()
+                details_short = details[:90] + "..." if len(details) > 90 else details
+                st.markdown(
+                    f"""
+                    <div class="cw-activity-item">
+                        <div class="cw-activity-title">{activity_name} - {activity['event_type']}</div>
+                        <div class="cw-activity-meta">{format_date_label(activity['event_time'])} {('- ' + details_short) if details_short else ''}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with quick_actions_col:
+        st.subheader("Quick Actions")
+        st.markdown('<div class="cw-section-card">', unsafe_allow_html=True)
+        if st.button("Add New Youth", width="stretch"):
+            st.info("Use the AI Assistant page to start a youth intake session for a new profile.")
+        if st.button("Schedule Appointment", width="stretch"):
+            st.info("Select a youth below, then use Quick Follow-Up Date in the case management section.")
+        if st.button("Create Follow-up Task", width="stretch"):
+            st.info("Use Follow-Up Tracker below to create a structured follow-up entry.")
+        if st.button("Send Message", width="stretch"):
+            st.info("Messaging workflow can be captured as a case note until direct messaging is connected.")
+        if st.button("Upload Document", width="stretch"):
+            st.info("Document upload can be tracked in Case Notes for now.")
+        if st.button("Run Risk Assessment", width="stretch"):
+            st.info("Run src/calculate_risk_scores.py and refresh this dashboard to update risk indicators.")
+        st.markdown('<div class="cw-table-subtle">View all tools</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.divider()
+    st.subheader("Case Management Workspace")
 
     selected_case_label = st.selectbox(
         "Open Youth Profile",
-        options=[f"{row['youth_id']} | {row['risk_level']} | {row['top_need_category']}" for _, row in my_cases_df.iterrows()],
+        options=[
+            f"{youth_name_map.get(str(row['youth_id']), str(row['youth_id']))} ({row['youth_id']}) | {row['risk_level']} | {row['top_need_category']}"
+            for _, row in my_cases_df.iterrows()
+        ],
+        index=0,
     )
-    selected_youth_id = selected_case_label.split(" | ", 1)[0]
+    selected_youth_id = selected_case_label.split("(", 1)[1].split(")", 1)[0]
+    if st.session_state.get("selected_youth_id") in set(my_cases_df["youth_id"].astype(str)):
+        selected_youth_id = str(st.session_state["selected_youth_id"])
+        st.session_state.pop("selected_youth_id", None)
     selected_case_row = my_cases_df[my_cases_df["youth_id"] == selected_youth_id].iloc[0]
 
     p1, p2, p3, p4 = st.columns(4)
-    p1.metric("Youth ID", str(selected_youth_id))
+    p1.metric("Youth", youth_name_map.get(str(selected_youth_id), str(selected_youth_id)))
     p2.metric("Risk Level", str(selected_case_row["risk_level"]))
     p3.metric("Top Need", str(selected_case_row["top_need_category"]))
     p4.metric("Case Status", str(selected_case_row["case_status"]))
