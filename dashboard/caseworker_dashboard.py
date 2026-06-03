@@ -238,6 +238,52 @@ def accept_case(connection: sqlite3.Connection, youth_id: str, caseworker_id: st
     )
 
 
+def unassign_case(connection: sqlite3.Connection, youth_id: str, caseworker_id: str) -> None:
+    connection.execute(
+        """
+        DELETE FROM case_assignments
+        WHERE youth_id = ?
+          AND caseworker_id = ?
+        """,
+        (youth_id, caseworker_id),
+    )
+
+
+def sync_case_statuses_after_intake_completion(connection: sqlite3.Connection, caseworker_id: str) -> int:
+    connection.execute(
+        """
+        WITH latest_intake AS (
+            SELECT youth_id, LOWER(COALESCE(session_status, '')) AS session_status
+            FROM (
+                SELECT
+                    youth_id,
+                    session_status,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY youth_id
+                        ORDER BY COALESCE(completed_at, started_at, '') DESC, intake_session_id DESC
+                    ) AS rn
+                FROM intake_sessions
+                WHERE profile_type = 'youth'
+            ) ranked
+            WHERE rn = 1
+        )
+        UPDATE case_assignments
+        SET case_status = 'in_progress',
+            last_updated_at = CURRENT_TIMESTAMP
+        WHERE caseworker_id = ?
+          AND case_status = 'assigned'
+          AND youth_id IN (
+              SELECT youth_id
+              FROM latest_intake
+              WHERE session_status = 'completed'
+          )
+        """,
+        (caseworker_id,),
+    )
+    row = connection.execute("SELECT changes() AS changed_count").fetchone()
+    return int(row[0]) if row else 0
+
+
 def load_my_assigned_cases(connection: sqlite3.Connection, caseworker_id: str) -> pd.DataFrame:
     return pd.read_sql_query(
         """
@@ -257,11 +303,12 @@ def load_my_assigned_cases(connection: sqlite3.Connection, caseworker_id: str) -
             WHERE rn = 1
         ),
         latest_intake AS (
-            SELECT youth_id, top_need_category
+            SELECT youth_id, top_need_category, session_status
             FROM (
                 SELECT
                     youth_id,
                     top_need_category,
+                    session_status,
                     ROW_NUMBER() OVER (
                         PARTITION BY youth_id
                         ORDER BY COALESCE(completed_at, started_at, '') DESC
@@ -282,7 +329,8 @@ def load_my_assigned_cases(connection: sqlite3.Connection, caseworker_id: str) -
             ca.next_follow_up_date,
             COALESCE(lr.risk_level, 'Unknown') AS risk_level,
             COALESCE(lr.overall_risk_score, 0.0) AS overall_risk_score,
-            COALESCE(li.top_need_category, 'not_set') AS top_need_category
+            COALESCE(li.top_need_category, 'not_set') AS top_need_category,
+            COALESCE(li.session_status, 'no_session') AS intake_status
         FROM case_assignments ca
         LEFT JOIN youth_profiles yp ON yp.youth_id = ca.youth_id
         LEFT JOIN latest_risk lr ON lr.youth_id = ca.youth_id
@@ -785,9 +833,15 @@ def render() -> None:
         can_close_case = bool(active_row and int(active_row[0]) == 1)
 
     with sqlite3.connect(db_path) as connection:
+        synced_cases = sync_case_statuses_after_intake_completion(connection, caseworker_id)
+        if synced_cases > 0:
+            connection.commit()
         available_df = load_available_cases(connection)
         my_cases_df = load_my_assigned_cases(connection, caseworker_id)
         alerts_df = load_high_risk_alerts(connection, caseworker_id)
+
+    if synced_cases > 0:
+        st.info(f"{synced_cases} case(s) moved to in_progress because AI Intake was completed.")
 
     due_followups_count = 0
     if not my_cases_df.empty and "next_follow_up_date" in my_cases_df.columns:
@@ -850,7 +904,7 @@ def render() -> None:
     p3.metric("Top Need", str(selected_case_row["top_need_category"]))
     p4.metric("Case Status", str(selected_case_row["case_status"]))
 
-    s1, s2 = st.columns(2)
+    s1, s2, s3 = st.columns(3)
     status_options = ["assigned", "in_progress", "on_hold"]
     if can_close_case or str(selected_case_row["case_status"]) == "closed":
         status_options.append("closed")
@@ -881,6 +935,17 @@ def render() -> None:
             connection.commit()
         st.success("Follow-up scheduled.")
         st.rerun()
+
+    confirm_unassign = s3.checkbox("Confirm Unassign", key=f"confirm_unassign_{selected_youth_id}")
+    if s3.button("Unassign Case", width="stretch"):
+        if not confirm_unassign:
+            st.error("Check 'Confirm Unassign' before removing this case assignment.")
+        else:
+            with sqlite3.connect(db_path) as connection:
+                unassign_case(connection, selected_youth_id, caseworker_id)
+                connection.commit()
+            st.success(f"Case unassigned: {selected_youth_id}")
+            st.rerun()
 
     st.divider()
     insights_col, actions_col = st.columns([1.05, 1])
