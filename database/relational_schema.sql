@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS risk_scores (
     housing_risk_score REAL CHECK (housing_risk_score >= 0.0 AND housing_risk_score <= 1.0),
     employment_risk_score REAL CHECK (employment_risk_score >= 0.0 AND employment_risk_score <= 1.0),
     education_risk_score REAL CHECK (education_risk_score >= 0.0 AND education_risk_score <= 1.0),
-    risk_level TEXT NOT NULL CHECK (risk_level IN ('Low', 'Moderate', 'High', 'Critical')),
+    risk_level TEXT NOT NULL CHECK (risk_level IN ('Low', 'Medium', 'High')),
     risk_factors_json TEXT,
     calculated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (youth_id) REFERENCES youth_profiles(youth_id) ON DELETE CASCADE
@@ -58,13 +58,21 @@ CREATE TABLE IF NOT EXISTS risk_scores (
 -- Intake session metadata for AI assistant conversations.
 CREATE TABLE IF NOT EXISTS intake_sessions (
     intake_session_id TEXT PRIMARY KEY,
-    youth_id TEXT NOT NULL,
+    youth_id TEXT,
+    candidate_profile_id TEXT,
+    profile_type TEXT NOT NULL CHECK (profile_type IN ('youth', 'candidate')),
     started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TEXT,
     session_status TEXT NOT NULL CHECK (session_status IN ('in_progress', 'completed', 'abandoned')),
     assistant_version TEXT,
     channel TEXT,
-    FOREIGN KEY (youth_id) REFERENCES youth_profiles(youth_id) ON DELETE CASCADE
+    top_need_category TEXT,
+    FOREIGN KEY (youth_id) REFERENCES youth_profiles(youth_id) ON DELETE CASCADE,
+    CHECK (
+        (profile_type = 'youth' AND youth_id IS NOT NULL AND candidate_profile_id IS NULL)
+        OR
+        (profile_type = 'candidate' AND candidate_profile_id IS NOT NULL AND youth_id IS NULL)
+    )
 );
 
 -- Individual question/answer pairs collected during intake.
@@ -105,10 +113,16 @@ CREATE TABLE IF NOT EXISTS recommendations (
 -- Caseworker assignment decisions and follow-up tracking.
 CREATE TABLE IF NOT EXISTS assigned_resources (
     assignment_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    youth_id TEXT NOT NULL,
+    youth_id TEXT,
+    candidate_profile_id TEXT,
+    profile_type TEXT NOT NULL CHECK (profile_type IN ('youth', 'candidate')),
     resource_id TEXT NOT NULL,
+    intake_session_id TEXT,
     recommendation_id INTEGER,
     assigned_by TEXT,
+    priority_level TEXT NOT NULL CHECK (priority_level IN ('High', 'Medium', 'Low')),
+    match_score REAL,
+    match_reason TEXT,
     assignment_status TEXT NOT NULL DEFAULT 'assigned' CHECK (
         assignment_status IN ('assigned', 'in_progress', 'completed', 'declined', 'closed')
     ),
@@ -117,7 +131,14 @@ CREATE TABLE IF NOT EXISTS assigned_resources (
     notes TEXT,
     FOREIGN KEY (youth_id) REFERENCES youth_profiles(youth_id) ON DELETE CASCADE,
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE RESTRICT,
-    FOREIGN KEY (recommendation_id) REFERENCES recommendations(recommendation_id) ON DELETE SET NULL
+    FOREIGN KEY (recommendation_id) REFERENCES recommendations(recommendation_id) ON DELETE SET NULL,
+    FOREIGN KEY (intake_session_id) REFERENCES intake_sessions(intake_session_id) ON DELETE SET NULL,
+    CHECK (
+        (profile_type = 'youth' AND youth_id IS NOT NULL AND candidate_profile_id IS NULL)
+        OR
+        (profile_type = 'candidate' AND candidate_profile_id IS NOT NULL AND youth_id IS NULL)
+    ),
+    UNIQUE (intake_session_id, resource_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_youth_profiles_county ON youth_profiles (county);
@@ -126,8 +147,11 @@ CREATE INDEX IF NOT EXISTS idx_resources_category ON resources (category);
 CREATE INDEX IF NOT EXISTS idx_risk_scores_youth_id ON risk_scores (youth_id);
 CREATE INDEX IF NOT EXISTS idx_risk_scores_calculated_at ON risk_scores (calculated_at);
 CREATE INDEX IF NOT EXISTS idx_intake_sessions_youth_id ON intake_sessions (youth_id);
+CREATE INDEX IF NOT EXISTS idx_intake_sessions_candidate_profile_id ON intake_sessions (candidate_profile_id);
 CREATE INDEX IF NOT EXISTS idx_intake_answers_session_id ON intake_answers (intake_session_id);
 CREATE INDEX IF NOT EXISTS idx_recommendations_youth_id ON recommendations (youth_id);
 CREATE INDEX IF NOT EXISTS idx_recommendations_resource_id ON recommendations (resource_id);
 CREATE INDEX IF NOT EXISTS idx_assigned_resources_youth_id ON assigned_resources (youth_id);
+CREATE INDEX IF NOT EXISTS idx_assigned_resources_candidate_profile_id ON assigned_resources (candidate_profile_id);
+CREATE INDEX IF NOT EXISTS idx_assigned_resources_intake_session_id ON assigned_resources (intake_session_id);
 CREATE INDEX IF NOT EXISTS idx_assigned_resources_resource_id ON assigned_resources (resource_id);
