@@ -102,6 +102,11 @@ Future-Path/
 
 ## How To Run
 
+### Double-Click Launcher
+
+On macOS, double-click [start.command](start.command) to migrate the database, run the pipeline, and open all dashboard views.
+You can also double-click [Future Path.app](Future%20Path.app) for the same behavior from Finder.
+
 ### 1. Install Dependencies
 
 ```bash
