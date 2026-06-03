@@ -4,10 +4,17 @@ import argparse
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TypedDict
 from uuid import uuid4
 
 
-QUESTIONS = [
+class IntakeQuestion(TypedDict):
+    key: str
+    prompt: str
+    options: list[str]
+
+
+QUESTIONS: list[IntakeQuestion] = [
     {
         "key": "housing_status",
         "prompt": "What is your current housing situation?",
@@ -40,7 +47,7 @@ QUESTIONS = [
     },
     {
         "key": "documents_status",
-        "prompt": "Do you have key documents (ID, birth certificate, social security card)?",
+        "prompt": "Do you currently have access to your key documents?",
         "options": ["all", "some", "none"],
     },
     {
@@ -142,6 +149,17 @@ def _create_intake_answers_table(connection: sqlite3.Connection) -> None:
             UNIQUE (intake_session_id, question_key)
         )
         """
+    )
+
+
+def print_intake_notice() -> None:
+    print(
+        "\nPrivacy and safety notice:\n"
+        "- This assistant uses synthetic or demo data and is a decision-support tool only.\n"
+        "- It is not a replacement for emergency services, crisis support, or professional case management.\n"
+        "- Do not enter SSNs, exact addresses, medical records, or other unnecessary sensitive details.\n"
+        "- If you or someone else is in immediate danger, call local emergency services right away.\n"
+        "- In the U.S., you can also call or text 988 for mental health crisis support.\n"
     )
 
 
@@ -255,10 +273,10 @@ def resolve_profile_link(
     return "candidate", None, normalized_candidate_id
 
 
-def prompt_for_answer(index: int, total: int, question: dict[str, object]) -> str:
-    key = str(question["key"])
-    prompt = str(question["prompt"])
-    options = [str(option) for option in question["options"]]
+def prompt_for_answer(index: int, total: int, question: IntakeQuestion) -> str:
+    key = question["key"]
+    prompt = question["prompt"]
+    options = question["options"]
 
     print(f"\nQuestion {index}/{total}: {prompt}")
     print(f"Options: {', '.join(options)}")
@@ -268,6 +286,15 @@ def prompt_for_answer(index: int, total: int, question: dict[str, object]) -> st
         if value in options:
             return value
         print("Invalid answer. Please enter one of the listed options.")
+
+
+def print_emergency_warning() -> None:
+    print(
+        "\nEmergency support warning:\n"
+        "- This assistant cannot provide crisis intervention or urgent safety response.\n"
+        "- If there is immediate danger, contact emergency services now.\n"
+        "- If this is a mental health crisis in the U.S., call or text 988.\n"
+    )
 
 
 def infer_summary_needs(answers: dict[str, str]) -> list[str]:
@@ -377,16 +404,19 @@ def run_intake(
     collected: dict[str, str] = {}
     total = len(QUESTIONS)
     for idx, question in enumerate(QUESTIONS, start=1):
-        key = str(question["key"])
-        prompt = str(question["prompt"])
+        key = question["key"]
+        prompt = question["prompt"]
         if answers is None:
             value = prompt_for_answer(idx, total, question)
         else:
             value = str(answers[key]).strip().lower()
-            if value not in {str(option) for option in question["options"]}:
+            if value not in set(question["options"]):
                 raise ValueError(f"Invalid test answer for {key}: {value}")
         collected[key] = value
         save_answer(connection, session_id, key, prompt, value)
+
+        if key == "safety_concern" and value == "yes":
+            print_emergency_warning()
 
     summary_needs = infer_summary_needs(collected)
     top_need_category = collected.get("primary_need") or "general_support"
@@ -412,6 +442,7 @@ def main() -> None:
         if not args.database.exists():
             raise FileNotFoundError(f"Database not found: {args.database}")
 
+        print_intake_notice()
         with sqlite3.connect(args.database) as connection:
             connection.execute("PRAGMA foreign_keys = ON")
             answers, summary_needs = run_intake(
@@ -432,7 +463,7 @@ def main() -> None:
             print("- General support")
         print("\nCaptured answers:")
         for question in QUESTIONS:
-            key = str(question["key"])
+            key = question["key"]
             print(f"- {key}: {answers[key]}")
 
     except KeyboardInterrupt:

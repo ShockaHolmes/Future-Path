@@ -5,6 +5,7 @@ import json
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 
 MODEL_NAME = "rules_based_risk"
@@ -180,7 +181,7 @@ def compute_risk_factors(youth: dict[str, object], intake_answers: dict[str, str
     employment = str(youth["employment"])
     education = str(youth["education"])
     mentor_status = str(youth["mentor_status"])
-    placement_count = int(youth["placement_count"])
+    placement_count = int(cast(int | float | str, youth["placement_count"]))
     prior_homelessness = str(youth["prior_homelessness"])
 
     if housing in {"Couch surfing", "Temporary shelter", "Transitional housing", "At risk of homelessness"}:
@@ -243,9 +244,18 @@ def insert_risk_score(
     risk_level: str,
     top_factors_payload: dict[str, object],
 ) -> None:
-    housing_component = min(top_factors_payload.get("category_scores", {}).get("housing", 0) / 40.0, 1.0)
-    employment_component = min(top_factors_payload.get("category_scores", {}).get("employment", 0) / 25.0, 1.0)
-    education_component = min(top_factors_payload.get("category_scores", {}).get("education", 0) / 20.0, 1.0)
+    category_scores_raw = top_factors_payload.get("category_scores")
+    category_scores: dict[str, int | float] = {}
+    if isinstance(category_scores_raw, dict):
+        category_scores = {
+            str(key): float(value)
+            for key, value in category_scores_raw.items()
+            if isinstance(value, (int, float))
+        }
+
+    housing_component = min(float(category_scores.get("housing", 0.0)) / 40.0, 1.0)
+    employment_component = min(float(category_scores.get("employment", 0.0)) / 25.0, 1.0)
+    education_component = min(float(category_scores.get("education", 0.0)) / 20.0, 1.0)
 
     connection.execute(
         """

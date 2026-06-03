@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from assign_resources_from_intake import assign_resources_from_intake
+from assign_resources_from_intake import assign_resources_from_intake, map_answers_to_needs
 
 
 def _create_base_schema(connection: sqlite3.Connection) -> None:
@@ -256,3 +256,32 @@ def test_assign_resources_from_youth_intake_links_youth_profile() -> None:
         assert row[1] is None
         assert row[2] == "youth"
         assert row[3] == "INTAKE-YOUTH-001"
+
+
+def test_map_answers_to_needs_scores_expected_categories() -> None:
+    answers = {
+        "housing_status": "couch_surfing",
+        "employment_status": "unemployed",
+        "education_status": "no_diploma_or_ged",
+        "transportation_access": "none",
+        "food_access": "no",
+        "health_wellness_need": "yes",
+        "documents_status": "none",
+        "support_system": "limited",
+        "safety_concern": "yes",
+        "primary_need": "housing",
+    }
+
+    needs, total_points = map_answers_to_needs(answers, top_need_category="housing")
+
+    assert "unstable_housing" in needs
+    assert "unemployment" in needs
+    assert "education_need" in needs
+    assert "transportation_need" in needs
+    assert "food_support" in needs
+    assert "wellness_need" in needs
+    assert "documents_need" in needs
+    assert "support_need" in needs
+    assert "safety_need" in needs
+    assert total_points > 0
+    assert needs["unstable_housing"]["risk_points"] >= 45
