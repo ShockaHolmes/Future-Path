@@ -102,6 +102,8 @@ Run the Future Path AI Assistant intake (guided one-question-at-a-time flow):
 python3 src/future_path_ai_intake.py --youth-id YP-0001
 ```
 
+The intake flow shows a privacy and safety notice before any questions begin. It uses synthetic or demo data and is a decision-support tool, not a crisis service or replacement for professional case management.
+
 Run intake for a pre-enrollment candidate profile:
 
 ```bash

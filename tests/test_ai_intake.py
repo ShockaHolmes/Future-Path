@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import redirect_stdout
+from io import StringIO
 
-from future_path_ai_intake import QUESTIONS, run_intake
+from future_path_ai_intake import QUESTIONS, print_intake_notice, run_intake
 
 
 def _create_youth_table(connection: sqlite3.Connection) -> None:
@@ -97,6 +99,42 @@ def test_run_intake_saves_answers_and_returns_summary() -> None:
     assert "Employment and job training" in summary
     assert "Education / GED / tutoring" in summary
     assert "Health and wellness / counseling" in summary
+
+
+def test_privacy_notice_and_emergency_warning_are_printed() -> None:
+    answers = {
+        "housing_status": "stable",
+        "employment_status": "part_time",
+        "education_status": "in_school",
+        "transportation_access": "reliable",
+        "food_access": "yes",
+        "health_wellness_need": "no",
+        "documents_status": "all",
+        "support_system": "strong",
+        "safety_concern": "yes",
+        "primary_need": "safety",
+    }
+
+    buffer = StringIO()
+    with sqlite3.connect(":memory:") as connection:
+        connection.row_factory = sqlite3.Row
+        _create_youth_table(connection)
+
+        with redirect_stdout(buffer):
+            print_intake_notice()
+            run_intake(
+                connection,
+                youth_id="YP-0001",
+                session_id="intake-test-privacy-001",
+                answers=answers,
+            )
+
+    output = buffer.getvalue()
+    assert "decision-support tool only" in output
+    assert "not a replacement for emergency services" in output
+    assert "Do not enter SSNs" in output
+    assert "Emergency support warning" in output
+    assert "call or text 988" in output
 
 
 def test_run_intake_supports_candidate_profile_linking() -> None:

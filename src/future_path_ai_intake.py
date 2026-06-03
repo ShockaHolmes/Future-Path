@@ -40,7 +40,7 @@ QUESTIONS = [
     },
     {
         "key": "documents_status",
-        "prompt": "Do you have key documents (ID, birth certificate, social security card)?",
+        "prompt": "Do you currently have access to your key documents?",
         "options": ["all", "some", "none"],
     },
     {
@@ -142,6 +142,17 @@ def _create_intake_answers_table(connection: sqlite3.Connection) -> None:
             UNIQUE (intake_session_id, question_key)
         )
         """
+    )
+
+
+def print_intake_notice() -> None:
+    print(
+        "\nPrivacy and safety notice:\n"
+        "- This assistant uses synthetic or demo data and is a decision-support tool only.\n"
+        "- It is not a replacement for emergency services, crisis support, or professional case management.\n"
+        "- Do not enter SSNs, exact addresses, medical records, or other unnecessary sensitive details.\n"
+        "- If you or someone else is in immediate danger, call local emergency services right away.\n"
+        "- In the U.S., you can also call or text 988 for mental health crisis support.\n"
     )
 
 
@@ -270,6 +281,15 @@ def prompt_for_answer(index: int, total: int, question: dict[str, object]) -> st
         print("Invalid answer. Please enter one of the listed options.")
 
 
+def print_emergency_warning() -> None:
+    print(
+        "\nEmergency support warning:\n"
+        "- This assistant cannot provide crisis intervention or urgent safety response.\n"
+        "- If there is immediate danger, contact emergency services now.\n"
+        "- If this is a mental health crisis in the U.S., call or text 988.\n"
+    )
+
+
 def infer_summary_needs(answers: dict[str, str]) -> list[str]:
     needs: list[str] = []
 
@@ -388,6 +408,9 @@ def run_intake(
         collected[key] = value
         save_answer(connection, session_id, key, prompt, value)
 
+        if key == "safety_concern" and value == "yes":
+            print_emergency_warning()
+
     summary_needs = infer_summary_needs(collected)
     top_need_category = collected.get("primary_need") or "general_support"
     connection.execute(
@@ -412,6 +435,7 @@ def main() -> None:
         if not args.database.exists():
             raise FileNotFoundError(f"Database not found: {args.database}")
 
+        print_intake_notice()
         with sqlite3.connect(args.database) as connection:
             connection.execute("PRAGMA foreign_keys = ON")
             answers, summary_needs = run_intake(
