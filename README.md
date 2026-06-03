@@ -1,151 +1,122 @@
-# Future-Path
+# Future Path
 
-## Project Goal
+A data engineering + AI-assisted decision-support project focused on improving youth transition outcomes through clean data pipelines, transparent scoring, and actionable resource recommendations.
 
-Future-Path is a youth transition data engineering project focused on building a safe, practical decision-support pipeline for case teams.
+Quick overview for employers and instructors: [PROJECT_BRIEF.md](PROJECT_BRIEF.md)
 
-The goal is to simulate a real-world environment where teams can:
+## Project Overview
 
-- analyze youth transition patterns without exposing private personal information,
-- maintain a restricted caseworker view for identity-linked support,
-- organize and clean a Delaware youth resource catalog,
-- and generate data-driven resource recommendations for each youth.
+Future Path simulates a real-world workflow used by transition teams, instructors, and employers to understand youth needs and match support services quickly.
 
-## What This Project Builds
+The project combines:
 
-This project builds an end-to-end pipeline that:
+- Synthetic youth profile generation
+- Data quality and validation pipelines
+- Relational modeling in SQLite
+- Risk scoring and recommendation logic
+- AI Assistant intake workflow
+- Streamlit dashboards for operational visibility
 
-1. Generates synthetic youth datasets (public and caseworker views).
-2. Cleans youth and resource data for reliable analysis and loading.
-3. Loads cleaned data into SQLite tables for downstream querying.
-4. Matches youth needs to eligible Delaware resources.
-5. Runs automated tests to validate core pipeline behavior.
+## Problem Statement
 
-In short: Future-Path is a foundation for privacy-aware analytics and referral matching for youth transition support.
+Youth transition support programs often struggle with fragmented data, inconsistent intake quality, and limited visibility into who needs what support first.
 
-## Setup
+Future Path addresses these challenges by providing:
 
-Run these commands from the project root:
+- A reproducible, privacy-aware data foundation
+- Clear risk scoring rules that are auditable
+- Structured recommendation and assignment workflows
+- Dashboard views that make trends and priorities obvious
+
+## Tech Stack
+
+- Language: Python 3
+- Data processing: pandas
+- Database: SQLite
+- Testing: pytest
+- Dashboard/UI: Streamlit
+- Data artifacts: CSV (raw, clean, processed)
+
+## Project Architecture
+
+```mermaid
+flowchart LR
+    A[Generate Synthetic Data] --> B[Clean and Validate Data]
+    B --> C[Load SQLite Tables]
+    C --> D[Risk Scoring]
+    C --> E[AI Intake Sessions]
+    D --> F[Recommendations]
+    E --> F
+    F --> G[Assigned Resources]
+    C --> H[Streamlit Dashboards]
+    D --> H
+    F --> H
+    E --> H
+```
+
+### Core Data Flow
+
+1. Generate synthetic youth and caseworker datasets
+2. Clean public, caseworker, and resource catalog records
+3. Load curated data into SQLite domain tables
+4. Calculate risk scores per youth
+5. Generate recommendations from risk + intake context
+6. Assign resources from intake outcomes
+7. Explore outcomes in dashboards and profile views
+
+## Folder Structure
+
+```text
+Future-Path/
+├── dashboard/
+│   ├── overview.py
+│   ├── profile_lookup.py
+│   └── ai_assistant.py
+├── data/
+│   ├── raw/
+│   ├── clean/
+│   └── processed/
+├── database/
+│   └── relational_schema.sql
+├── docs/
+│   └── screenshots/
+│       ├── dashboard-overview.svg
+│       └── ai-assistant.svg
+├── src/
+│   ├── generate_synthetic_youth_data.py
+│   ├── clean_synthetic_youth_data.py
+│   ├── clean_caseworker_youth_data.py
+│   ├── clean_youth_resource_catalog.py
+│   ├── load_youth_data_to_database.py
+│   ├── load_youth_profiles_etl.py
+│   ├── calculate_risk_scores.py
+│   ├── generate_recommendations.py
+│   ├── future_path_ai_intake.py
+│   ├── assign_resources_from_intake.py
+│   ├── match_youth_to_resources.py
+│   └── run_data_pipeline.py
+├── tests/
+├── requirements.txt
+└── README.md
+```
+
+## How To Run
+
+### 1. Install Dependencies
 
 ```bash
 python3 -m pip install -r requirements.txt
 ```
 
-## Pipeline Commands
-
-Generate the synthetic raw datasets:
-
-```bash
-python3 src/generate_synthetic_youth_data.py
-```
-
-Clean the de-identified youth dataset:
-
-```bash
-python3 src/clean_synthetic_youth_data.py
-```
-
-Clean the caseworker dataset:
-
-```bash
-python3 src/clean_caseworker_youth_data.py
-```
-
-Clean the youth resource catalog:
-
-```bash
-python3 src/clean_youth_resource_catalog.py
-```
-
-Load the cleaned datasets into SQLite:
-
-```bash
-python3 src/load_youth_data_to_database.py
-```
-
-Load cleaned youth records into relational `youth_profiles` (ETL step):
-
-```bash
-python3 src/load_youth_profiles_etl.py
-```
-
-Build youth-to-resource matches from cleaned data:
-
-```bash
-python3 src/match_youth_to_resources.py
-```
-
-Calculate youth risk scores and store them in `risk_scores`:
-
-```bash
-python3 src/calculate_risk_scores.py
-```
-
-Generate database recommendations from youth needs and risk factors:
-
-```bash
-python3 src/generate_recommendations.py
-```
-
-Automatically assign resources from completed AI intake responses:
-
-```bash
-python3 src/assign_resources_from_intake.py --session-id intake-REPLACE_WITH_SESSION_ID --top-n 5
-```
-
-If `--session-id` is omitted, the script uses the latest completed intake session.
-It prints a clear summary with identified needs, total risk points, assigned resources, match reason, and priority level.
-
-Run the Future Path AI Assistant intake (guided one-question-at-a-time flow):
-
-```bash
-python3 src/future_path_ai_intake.py --youth-id YP-0001
-```
-
-The intake flow shows a privacy and safety notice before any questions begin. It uses synthetic or demo data and is a decision-support tool, not a crisis service or replacement for professional case management.
-
-Run intake for a pre-enrollment candidate profile:
-
-```bash
-python3 src/future_path_ai_intake.py --candidate-id CP-9001
-```
-
-Intake persistence details for case manager review:
-
-- Each session is stored in `intake_sessions` with `session_status`, `completed_at`, and `top_need_category`.
-- Each question/answer is stored in `intake_answers` with `question_text` and `answer_value`.
-- Sessions can be linked to either `youth_id` or `candidate_profile_id`.
-- Recommendations are linked back to intake context through `recommendations.intake_session_id`.
-
-Example queries:
-
-```sql
--- Review completed intake sessions with top need
-SELECT intake_session_id, youth_id, candidate_profile_id, top_need_category, completed_at
-FROM intake_sessions
-WHERE session_status = 'completed'
-ORDER BY completed_at DESC;
-
--- Review all captured answers for a specific session
-SELECT question_key, question_text, answer_value, answered_at
-FROM intake_answers
-WHERE intake_session_id = 'intake-REPLACE_WITH_SESSION_ID'
-ORDER BY intake_answer_id;
-
--- Join intake context to recommendations for follow-up
-SELECT r.youth_id, r.resource_id, r.recommendation_reason, r.priority_rank, r.intake_session_id
-FROM recommendations r
-WHERE r.intake_session_id IS NOT NULL
-ORDER BY r.youth_id, r.priority_rank;
-```
-
-Run the full pipeline (generate, clean, load, match, and test) with one command:
+### 2. Run End-To-End Pipeline
 
 ```bash
 python3 src/run_data_pipeline.py
 ```
 
-Run the full data pipeline step by step:
+This command generates, cleans, loads, matches, and validates core pipeline outputs.
+
+### 3. Optional Step-By-Step Pipeline
 
 ```bash
 python3 src/generate_synthetic_youth_data.py
@@ -153,85 +124,114 @@ python3 src/clean_synthetic_youth_data.py
 python3 src/clean_caseworker_youth_data.py
 python3 src/clean_youth_resource_catalog.py
 python3 src/load_youth_data_to_database.py
+python3 src/load_youth_profiles_etl.py
+python3 src/calculate_risk_scores.py
+python3 src/generate_recommendations.py
 python3 src/match_youth_to_resources.py
 ```
 
-## Test Commands
+### 4. Run Streamlit Views
 
-Run the pipeline test suite:
-
-```bash
-pytest tests/test_data_pipeline.py -q
-```
-
-Run the dedicated resource cleaner/loader/matcher tests:
+Overview dashboard:
 
 ```bash
-pytest tests/test_resource_catalog.py tests/test_resource_pipeline.py -q
+streamlit run dashboard/overview.py
 ```
 
-Run risk scoring tests:
+Youth profile lookup:
 
 ```bash
-pytest tests/test_risk_scoring.py -q
+streamlit run dashboard/profile_lookup.py
 ```
 
-Run recommendation logic tests:
+AI Assistant intake UI:
 
 ```bash
-pytest tests/test_recommendations.py -q
+streamlit run dashboard/ai_assistant.py
 ```
 
-Run AI intake flow tests:
+### 5. Migrate Older Databases (If Needed)
+
+If your local database was created with an older schema and dashboard pages fail due to missing columns, run:
 
 ```bash
-pytest tests/test_ai_intake.py -q
+python3 src/migrate_database_schema.py --database database/future_path.db
 ```
 
-Run intake-to-resource assignment tests:
-
-```bash
-pytest tests/test_intake_resource_assignment.py -q
-```
-
-Run all tests:
+### 6. Run Test Suite
 
 ```bash
 pytest -q
 ```
 
-## Synthetic Data Files
+Current expected result: all tests pass.
 
-The project generates two synthetic CSV files in `data/raw/`:
+## AI Assistant Explanation
 
-- `synthetic_youth_transition_data.csv`: De-identified dataset for analytics, dashboards, and model development.
-- `synthetic_youth_caseworker_data.csv`: Restricted dataset containing PII (`first_name`, `last_name`) mapped to `youth_id` for caseworker use only.
+Future Path AI Assistant is a guided intake workflow that asks structured questions one at a time and stores responses for downstream recommendations.
 
-## Youth Resource Catalog
+### What It Does
 
-- `future_path_delaware_youth_resources.csv`: Delaware youth resource directory for referrals, eligibility screening, and AI-assisted resource matching.
-- File location: `data/raw/future_path_delaware_youth_resources.csv`
+- Starts an intake session for youth or candidate profiles
+- Captures standardized answers (not free-form sensitive details)
+- Tracks completion progress and top need category
+- Triggers recommendation and assignment logic
+- Shows end-of-intake summary with prioritized supports
 
-## PII Handling
+### Safety and Ethics
 
-- Use `synthetic_youth_transition_data.csv` for reporting and visualization.
-- Do not expose `synthetic_youth_caseworker_data.csv` in dashboards, shared exports, or public reports.
-- Treat the caseworker file as sensitive data and limit access to authorized staff.
+- Uses synthetic/demo data in this project context
+- Decision-support only, not a crisis intervention tool
+- Includes emergency guidance if safety concerns are reported
+- Encourages minimal sensitive data collection
 
-## Intake Assignment Queries
+## Dashboard Screenshots
 
-Use these queries to review what was assigned from intake results:
+### Dashboard Overview
 
-```sql
--- View assigned resources with priority and reason for a session
-SELECT intake_session_id, profile_type, youth_id, candidate_profile_id, resource_id, priority_level, match_score, match_reason
-FROM assigned_resources
-WHERE intake_session_id = 'intake-REPLACE_WITH_SESSION_ID'
-ORDER BY priority_level, match_score DESC;
+![Future Path Dashboard Overview](docs/screenshots/dashboard-overview.svg)
 
--- View all recent assignments generated by AI intake matching
-SELECT assignment_id, intake_session_id, assigned_by, assigned_at, priority_level, resource_id
-FROM assigned_resources
-WHERE assigned_by = 'ai_intake_matcher_v1'
-ORDER BY assigned_at DESC;
+### AI Assistant Intake Experience
+
+![Future Path AI Assistant](docs/screenshots/ai-assistant.svg)
+
+## Testing and Quality
+
+The test suite covers core logic across:
+
+- Data cleaning and validation
+- Risk scoring logic and persistence
+- Recommendation generation and priorities
+- AI intake response handling and summary logic
+- Answer-to-need mapping and resource assignment inserts
+
+Run targeted suites when needed:
+
+```bash
+pytest tests/test_data_pipeline.py -q
+pytest tests/test_risk_scoring.py -q
+pytest tests/test_recommendations.py -q
+pytest tests/test_ai_intake.py -q
+pytest tests/test_intake_resource_assignment.py -q
 ```
+
+## Future Improvements
+
+- Add role-based access and authentication for caseworker views
+- Introduce configurable scoring weights and explainability panels
+- Add trend dashboards (weekly/monthly deltas) for program outcomes
+- Support export workflows (PDF summaries, CSV action lists)
+- Add lightweight API layer for external integrations
+- Expand UI test coverage for Streamlit interaction flows
+
+## Project Purpose for Employers and Instructors
+
+Future Path demonstrates practical capability in:
+
+- End-to-end data engineering design
+- Reproducible ETL and quality controls
+- Applied analytics and recommendation systems
+- Human-centered AI assistant workflow design
+- Test-driven implementation and maintainability
+
+It is designed to be reviewable as both a technical portfolio artifact and an instructional capstone-quality project.

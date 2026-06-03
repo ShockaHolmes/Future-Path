@@ -4,7 +4,7 @@ import sqlite3
 from contextlib import redirect_stdout
 from io import StringIO
 
-from future_path_ai_intake import QUESTIONS, print_intake_notice, run_intake
+from future_path_ai_intake import QUESTIONS, print_intake_notice, run_intake, save_answer
 
 
 def _create_youth_table(connection: sqlite3.Connection) -> None:
@@ -176,3 +176,51 @@ def test_run_intake_supports_candidate_profile_linking() -> None:
     assert row[1] is None
     assert row[2] == "CP-9001"
     assert row[3] == "employment"
+
+
+def test_save_answer_upserts_database_row() -> None:
+    with sqlite3.connect(":memory:") as connection:
+        connection.execute(
+            """
+            CREATE TABLE intake_answers (
+                intake_answer_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                intake_session_id TEXT NOT NULL,
+                question_key TEXT NOT NULL,
+                question_text TEXT,
+                answer_value TEXT,
+                answer_type TEXT,
+                answered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (intake_session_id, question_key)
+            )
+            """
+        )
+
+        save_answer(
+            connection,
+            session_id="intake-test-upsert-001",
+            question_key="primary_need",
+            question_text="What is your primary need right now?",
+            answer_value="housing",
+        )
+        save_answer(
+            connection,
+            session_id="intake-test-upsert-001",
+            question_key="primary_need",
+            question_text="What is your primary need right now?",
+            answer_value="employment",
+        )
+        connection.commit()
+
+        row_count = connection.execute(
+            "SELECT COUNT(*) FROM intake_answers WHERE intake_session_id = 'intake-test-upsert-001'"
+        ).fetchone()[0]
+        value = connection.execute(
+            """
+            SELECT answer_value
+            FROM intake_answers
+            WHERE intake_session_id = 'intake-test-upsert-001' AND question_key = 'primary_need'
+            """
+        ).fetchone()[0]
+
+    assert row_count == 1
+    assert value == "employment"

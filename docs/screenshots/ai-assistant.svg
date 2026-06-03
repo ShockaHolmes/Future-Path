@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#182a46"/>
+      <stop offset="100%" stop-color="#214f88"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="#f5f8fc"/>
+  <rect x="0" y="0" width="1200" height="80" fill="url(#bg2)"/>
+  <text x="40" y="50" font-family="Arial, sans-serif" font-size="34" fill="#ffffff" font-weight="700">Future Path AI Assistant</text>
+
+  <rect x="40" y="110" width="1120" height="70" rx="12" fill="#eef5ff" stroke="#d4e3fb"/>
+  <text x="65" y="150" font-family="Arial, sans-serif" font-size="22" fill="#274c77">Decision-support intake flow. Not a crisis service.</text>
+
+  <rect x="40" y="205" width="760" height="390" rx="12" fill="#ffffff" stroke="#d9e1ee"/>
+  <text x="65" y="240" font-family="Arial, sans-serif" font-size="24" fill="#1c2d4a" font-weight="700">Chat Intake Experience</text>
+
+  <rect x="65" y="265" width="460" height="54" rx="12" fill="#eef3fb"/>
+  <text x="82" y="298" font-family="Arial, sans-serif" font-size="18" fill="#2e4770">What is your current housing situation?</text>
+
+  <rect x="280" y="335" width="310" height="48" rx="12" fill="#d9f4e6"/>
+  <text x="300" y="365" font-family="Arial, sans-serif" font-size="18" fill="#2d6b4d">couch_surfing</text>
+
+  <rect x="65" y="400" width="460" height="54" rx="12" fill="#eef3fb"/>
+  <text x="82" y="433" font-family="Arial, sans-serif" font-size="18" fill="#2e4770">What best describes your employment status?</text>
+
+  <rect x="280" y="470" width="310" height="48" rx="12" fill="#d9f4e6"/>
+  <text x="300" y="500" font-family="Arial, sans-serif" font-size="18" fill="#2d6b4d">unemployed</text>
+
+  <rect x="830" y="205" width="330" height="390" rx="12" fill="#ffffff" stroke="#d9e1ee"/>
+  <text x="855" y="240" font-family="Arial, sans-serif" font-size="24" fill="#1c2d4a" font-weight="700">Progress & Summary</text>
+
+  <rect x="855" y="265" width="280" height="18" rx="8" fill="#dbe8f8"/>
+  <rect x="855" y="265" width="170" height="18" rx="8" fill="#2f80ed"/>
+  <text x="855" y="310" font-family="Arial, sans-serif" font-size="18" fill="#2e4770">Question 6 of 10</text>
+
+  <rect x="855" y="335" width="280" height="110" rx="10" fill="#f8fbff" stroke="#e0e8f5"/>
+  <text x="875" y="365" font-family="Arial, sans-serif" font-size="17" fill="#244269">Top Need: Housing</text>
+  <text x="875" y="395" font-family="Arial, sans-serif" font-size="17" fill="#244269">Risk Score: 82 / 100</text>
+  <text x="875" y="425" font-family="Arial, sans-serif" font-size="17" fill="#244269">Priority: High</text>
+
+  <rect x="855" y="470" width="280" height="100" rx="10" fill="#f8fbff" stroke="#e0e8f5"/>
+  <text x="875" y="500" font-family="Arial, sans-serif" font-size="17" fill="#244269">Recommended:</text>
+  <text x="875" y="528" font-family="Arial, sans-serif" font-size="15" fill="#244269">• Housing Support</text>
+  <text x="875" y="550" font-family="Arial, sans-serif" font-size="15" fill="#244269">• Job Training</text>
+
+  <text x="600" y="685" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#5a6b84">Streamlit AI Assistant Concept Preview</text>
+</svg>
