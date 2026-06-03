@@ -165,13 +165,17 @@ def render_question_input(connection: sqlite3.Connection, db_path: Path) -> None
     with st.chat_message("assistant"):
         st.write(question["prompt"])
 
-    choice = st.radio(
+    raw_choice = st.radio(
         "Choose your answer",
         options=question["options"],
         key=f"assistant_choice_{current_index}",
         horizontal=False,
         label_visibility="collapsed",
     )
+    if raw_choice is None:
+        st.warning("Please select an answer before continuing.")
+        return
+    choice = str(raw_choice)
 
     action_col1, action_col2 = st.columns([1, 1])
     with action_col1:
@@ -280,13 +284,19 @@ def render() -> None:
         st.subheader("Start Intake")
         st.write("Select whether this intake is for a youth profile or a candidate profile.")
 
-        profile_type = st.radio("Profile Type", options=["youth", "candidate"], horizontal=True)
-        youth_id = st.text_input("Youth ID", value=st.session_state["assistant_youth_id"], disabled=profile_type != "youth")
-        candidate_id = st.text_input(
+        profile_type = str(st.radio("Profile Type", options=["youth", "candidate"], horizontal=True))
+        youth_id_input = st.text_input(
+            "Youth ID",
+            value=st.session_state["assistant_youth_id"],
+            disabled=profile_type != "youth",
+        )
+        candidate_id_input = st.text_input(
             "Candidate Profile ID",
             value=st.session_state["assistant_candidate_id"],
             disabled=profile_type != "candidate",
         )
+        youth_id = youth_id_input or ""
+        candidate_id = candidate_id_input or ""
 
         start_disabled = False
         with sqlite3.connect(db_path) as connection:
