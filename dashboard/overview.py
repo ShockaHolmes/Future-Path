@@ -293,7 +293,7 @@ def render() -> None:
     st.title("Future Path Dashboard Overview")
     st.caption("MVP insights powered by the SQLite project database")
 
-    launch_col1, launch_col2 = st.columns([1, 3])
+    launch_col1, launch_col2, launch_col3 = st.columns([1, 1, 2])
     with launch_col1:
         if st.button("🤖 Future Path AI Assistant", width="stretch"):
             try:
@@ -301,6 +301,12 @@ def render() -> None:
             except Exception:
                 st.info("Open dashboard/ai_assistant.py from Streamlit multipage navigation.")
     with launch_col2:
+        if st.button("📋 Caseworker Dashboard", width="stretch"):
+            try:
+                st.switch_page("dashboard/caseworker_dashboard.py")
+            except Exception:
+                st.info("Open dashboard/caseworker_dashboard.py from Streamlit multipage navigation.")
+    with launch_col3:
         st.write("Start a guided intake assessment and generate recommendations.")
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
