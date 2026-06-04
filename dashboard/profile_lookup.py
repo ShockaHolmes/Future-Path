@@ -8,6 +8,11 @@ import streamlit as st
 
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
+OVERVIEW_URL = "http://localhost:8501"
+PROFILE_LOOKUP_URL = "http://localhost:8502"
+AI_ASSISTANT_URL = "http://localhost:8503"
+CASEWORKER_URL = "http://localhost:8504"
+YOUTH_DASHBOARD_URL = "http://localhost:8505"
 
 
 def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
@@ -274,22 +279,19 @@ def inject_profile_lookup_styles() -> None:
 
 def render_top_navigation(current_page: str) -> None:
     buttons = [
-        ("Overview", "overview.py", "overview"),
-        ("Youth Profiles", "profile_lookup.py", "profile_lookup"),
-        ("AI Assistant", "ai_assistant.py", "ai_assistant"),
-        ("Caseworker Dashboard", "caseworker_dashboard.py", "caseworker_dashboard"),
+        ("Overview", OVERVIEW_URL, "overview"),
+        ("Youth Dashboard", YOUTH_DASHBOARD_URL, "youth_dashboard"),
+        ("Youth Profiles", PROFILE_LOOKUP_URL, "profile_lookup"),
+        ("AI Assistant", AI_ASSISTANT_URL, "ai_assistant"),
+        ("Caseworker Dashboard", CASEWORKER_URL, "caseworker_dashboard"),
     ]
-    cols = st.columns(4)
-    for idx, (label, target, page_key) in enumerate(buttons):
+    cols = st.columns(5)
+    for idx, (label, url, page_key) in enumerate(buttons):
         with cols[idx]:
-            key = f"topnav_std_{page_key}"
             if page_key == current_page:
-                st.button(label, width="stretch", disabled=True, key=key)
-            elif st.button(label, width="stretch", key=key):
-                try:
-                    st.switch_page(target)
-                except Exception:
-                    st.info(f"Open {target} from Streamlit multipage navigation.")
+                st.link_button(label, url=url, use_container_width=True, disabled=True)
+            else:
+                st.link_button(label, url=url, use_container_width=True)
 
 
 def render() -> None:
