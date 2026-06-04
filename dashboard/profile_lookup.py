@@ -233,6 +233,31 @@ def inject_profile_lookup_styles() -> None:
             color: #0b1b51;
         }
 
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%) !important;
+            color: #16356c !important;
+            border-right: 1px solid #d9e5fb !important;
+        }
+
+        [data-testid="stSidebar"] * {
+            color: #173775 !important;
+        }
+
+        [data-testid="stSidebar"] div[data-baseweb="input"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="select"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="textarea"] > div {
+            background: #ffffff !important;
+            border: 1px solid #cfe0f5 !important;
+            color: #173775 !important;
+        }
+
+        [data-testid="stSidebar"] input,
+        [data-testid="stSidebar"] textarea,
+        [data-testid="stSidebar"] span {
+            color: #173775 !important;
+            opacity: 1 !important;
+        }
+
         .main .block-container {
             padding-top: 1.4rem;
             max-width: 1220px;

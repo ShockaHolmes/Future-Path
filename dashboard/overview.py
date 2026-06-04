@@ -16,6 +16,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
+from candidate_promotion import load_promotable_candidate_intakes
 
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
@@ -126,13 +127,18 @@ def apply_filters(
     return filtered
 
 
-def load_dashboard_metrics(filtered_youth_df: pd.DataFrame, active_resources: int) -> dict[str, float | int]:
+def load_dashboard_metrics(
+    filtered_youth_df: pd.DataFrame,
+    active_resources: int,
+    candidate_queue_count: int = 0,
+) -> dict[str, float | int]:
     metrics: dict[str, float | int] = {
         "total_youth": 0,
         "high_risk_cases": 0,
         "stable_housing_pct": 0.0,
         "employment_pct": 0.0,
         "active_resources": active_resources,
+        "candidate_queue_count": int(candidate_queue_count),
     }
 
     if filtered_youth_df.empty:
@@ -252,6 +258,22 @@ def load_top_recommended_resources(
     return pd.DataFrame(columns=["resource_name", "recommendation_count"])
 
 
+def load_candidate_promotion_queue(connection: sqlite3.Connection) -> pd.DataFrame:
+    queue_df = load_promotable_candidate_intakes(connection)
+    if queue_df.empty:
+        return pd.DataFrame(columns=["Candidate ID", "Top Need", "Completed", "Assigned Resources"])
+
+    display_df = queue_df.copy().head(5)
+    display_df["Completed"] = display_df["completed_at"].fillna(display_df["started_at"]).astype(str).str.slice(0, 10)
+    display_df["Assigned Resources"] = display_df["assignment_count"].fillna(0).astype(int)
+    return display_df.rename(
+        columns={
+            "candidate_profile_id": "Candidate ID",
+            "top_need_category": "Top Need",
+        }
+    )[["Candidate ID", "Top Need", "Completed", "Assigned Resources"]]
+
+
 def load_county_level_needs(filtered_youth_df: pd.DataFrame) -> pd.DataFrame:
     if filtered_youth_df.empty:
         return pd.DataFrame(
@@ -326,23 +348,24 @@ def render_metric_cards(metrics: dict[str, float | int]) -> None:
     cards = [
         ("Total Youth", f"{int(metrics['total_youth']):,}", "vs last month"),
         ("High Risk Cases", f"{int(metrics['high_risk_cases']):,}", "priority review"),
+        ("Candidates Waiting", f"{int(metrics['candidate_queue_count']):,}", "ready to promote"),
         ("Stable Housing %", f"{float(metrics['stable_housing_pct']):.0f}%", "current view"),
         ("Employed %", f"{float(metrics['employment_pct']):.0f}%", "current view"),
         ("Active Resources", f"{int(metrics['active_resources']):,}", "catalog count"),
     ]
-    cols = st.columns(5)
+    cols = st.columns(6)
     for index, (title, value, footnote) in enumerate(cards):
         with cols[index]:
-            st.markdown(
-                f"""
+            card_markup = f"""
                 <div class="overview-kpi-card">
                     <div class="overview-kpi-label">{title}</div>
                     <div class="overview-kpi-value">{value}</div>
                     <div class="overview-kpi-footnote">{footnote}</div>
                 </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            """
+            if title == "Candidates Waiting":
+                card_markup = f'<a class="overview-kpi-card-link" href="#candidate-queue">{card_markup}</a>'
+            st.markdown(card_markup, unsafe_allow_html=True)
 
 
 def render_pie_chart(frame: pd.DataFrame, label_column: str, value_column: str, title: str, colors: list[str]) -> None:
@@ -389,17 +412,12 @@ def render_pie_chart(frame: pd.DataFrame, label_column: str, value_column: str, 
 
     legend_html = "".join(row.strip() for row in legend_rows)
     gradient_css = ", ".join(segments)
-    center_value = f"{total:,.0f}" if total >= 100 else f"{total:.0f}"
-
     st.markdown(
         dedent(
             f"""
             <div class="pie-chart-shell">
                 <div class="pie-chart-ring" style="background: conic-gradient({gradient_css});">
-                    <div class="pie-chart-hole">
-                        <div class="pie-chart-total">{center_value}</div>
-                        <div class="pie-chart-total-label">Total</div>
-                    </div>
+                    <div class="pie-chart-hole"></div>
                 </div>
                 <div class="pie-chart-legend">
                     {legend_html}
@@ -464,13 +482,34 @@ def inject_overview_styles() -> None:
         }
 
         [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #0b2440 0%, #081a31 100%);
-            color: #ffffff;
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%) !important;
+            color: #16356c !important;
+            border-right: 1px solid #d9e5fb !important;
         }
 
         [data-testid="stSidebar"] * {
-            color: #eef5ff !important;
+            color: #173775 !important;
+        }
+
+        [data-testid="stSidebar"] div[data-baseweb="input"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="select"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="textarea"] > div {
+            background: #ffffff !important;
+            border: 1px solid #cfe0f5 !important;
+            color: #173775 !important;
+        }
+
+        [data-testid="stSidebar"] input,
+        [data-testid="stSidebar"] textarea,
+        [data-testid="stSidebar"] span {
+            color: #173775 !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stSidebar"] .stButton > button {
+            background: #eef4ff !important;
+            color: #163b79 !important;
+            border: 1px solid #c9d8ef !important;
         }
 
         .main .block-container {
@@ -544,6 +583,34 @@ def inject_overview_styles() -> None:
             padding: 14px 14px 12px 14px;
             box-shadow: 0 8px 18px rgba(16, 34, 63, 0.04);
             min-height: 110px;
+        }
+
+        .overview-kpi-card-link {
+            text-decoration: none;
+            display: block;
+        }
+
+        .overview-kpi-card-link .overview-kpi-card {
+            position: relative;
+            transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+        }
+
+        .overview-kpi-card-link .overview-kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(16, 34, 63, 0.08);
+            border-color: #b9cfee;
+        }
+
+        .overview-kpi-card-link .overview-kpi-card::after {
+            content: 'Open queue';
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: #2a5aaa;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
 
         .overview-kpi-label {
@@ -620,11 +687,49 @@ def inject_overview_styles() -> None:
             color: #163b79 !important;
             border: 1px solid #c9d8ef !important;
             font-weight: 700 !important;
+            box-shadow: none !important;
+        }
+
+        .overview-strip .stButton > button {
+            white-space: nowrap !important;
         }
 
         .main .stButton > button:hover {
             background: #e6efff !important;
             color: #112f63 !important;
+        }
+
+        .stButton > button,
+        .stButton > button[kind="secondary"],
+        .stButton > button[kind="tertiary"] {
+            background: #eef4ff !important;
+            color: #163b79 !important;
+            border: 1px solid #c9d8ef !important;
+            box-shadow: none !important;
+        }
+
+        .stButton > button[kind="secondary"]:hover,
+        .stButton > button[kind="tertiary"]:hover {
+            background: #e6efff !important;
+            color: #112f63 !important;
+        }
+
+        .main div[data-baseweb="input"] > div,
+        .main div[data-baseweb="select"] > div,
+        .main div[data-baseweb="textarea"] > div,
+        .main div[data-baseweb="base-input"] > div {
+            background: #ffffff !important;
+            border: 1px solid #cfe0f5 !important;
+            color: #10223f !important;
+        }
+
+        .main div[data-baseweb="input"] input,
+        .main div[data-baseweb="select"] span,
+        .main div[data-baseweb="textarea"] textarea,
+        .main input,
+        .main textarea {
+            color: #10223f !important;
+            opacity: 1 !important;
         }
 
         .pie-chart-shell {
@@ -638,37 +743,25 @@ def inject_overview_styles() -> None:
             width: 180px;
             height: 180px;
             border-radius: 50%;
-            padding: 10px;
+            position: relative;
             box-sizing: border-box;
             margin: 0 auto;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9);
         }
 
         .pie-chart-hole {
-            width: 100%;
-            height: 100%;
+            width: 64%;
+            height: 64%;
             border-radius: 50%;
             background: #ffffff;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-direction: column;
-            text-align: center;
             box-shadow: inset 0 0 0 1px #e5edf6;
-        }
-
-        .pie-chart-total {
-            color: #0c1f44;
-            font-size: 1.7rem;
-            font-weight: 800;
-            line-height: 1;
-        }
-
-        .pie-chart-total-label {
-            color: #5f728e;
-            font-size: 0.82rem;
-            font-weight: 700;
-            margin-top: 4px;
         }
 
         .pie-chart-legend {
@@ -979,11 +1072,6 @@ def render() -> None:
         st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
         st.stop()
 
-    if st.sidebar.button("Shut Down All Dashboards", use_container_width=True, key="sidebar_shutdown_all"):
-        stop_all_dashboards()
-        st.sidebar.success("All dashboard servers were stopped.")
-        st.stop()
-
     st.sidebar.markdown("---")
     st.sidebar.markdown("#### Quick Insight")
     st.sidebar.caption("Use the filters in the main view to narrow the dashboard by county or risk level.")
@@ -1051,6 +1139,12 @@ def render() -> None:
     if "risk_level_filter" not in st.session_state:
         st.session_state["risk_level_filter"] = []
 
+    # Apply queued quick-filter updates before widgets are created.
+    if "pending_county_filter" in st.session_state:
+        st.session_state["county_filter"] = st.session_state.pop("pending_county_filter")
+    if "pending_risk_level_filter" in st.session_state:
+        st.session_state["risk_level_filter"] = st.session_state.pop("pending_risk_level_filter")
+
     search_query = st.text_input(
         "Search by Youth ID or County",
         placeholder="Search by Youth ID or County...",
@@ -1058,28 +1152,28 @@ def render() -> None:
     ).strip().lower()
 
     st.markdown('<div class="overview-strip">', unsafe_allow_html=True)
-    filter_cols = st.columns([2.2, 1.2, 1, 1, 1, 0.8, 0.8])
+    filter_cols = st.columns([2.2, 1.2, 1, 1, 1, 0.85, 1.05])
     with filter_cols[0]:
         selected_counties = st.multiselect("County Filter", options=counties, key="county_filter")
     with filter_cols[1]:
         selected_risk_levels = st.multiselect("Risk Level Filter", options=risk_levels, key="risk_level_filter")
     with filter_cols[2]:
         if st.button("High Risk Only", width="stretch"):
-            st.session_state["risk_level_filter"] = ["High"] if "High" in risk_levels else []
-            st.session_state["county_filter"] = []
+            st.session_state["pending_risk_level_filter"] = ["High"] if "High" in risk_levels else []
+            st.session_state["pending_county_filter"] = []
             st.rerun()
     with filter_cols[3]:
         if st.button("Kent County", width="stretch"):
-            st.session_state["county_filter"] = ["Kent"] if "Kent" in counties else []
+            st.session_state["pending_county_filter"] = ["Kent"] if "Kent" in counties else []
             st.rerun()
     with filter_cols[4]:
         if st.button("Sussex County", width="stretch"):
-            st.session_state["county_filter"] = ["Sussex"] if "Sussex" in counties else []
+            st.session_state["pending_county_filter"] = ["Sussex"] if "Sussex" in counties else []
             st.rerun()
     with filter_cols[5]:
         if st.button("Clear", width="stretch"):
-            st.session_state["county_filter"] = []
-            st.session_state["risk_level_filter"] = []
+            st.session_state["pending_county_filter"] = []
+            st.session_state["pending_risk_level_filter"] = []
             st.rerun()
     with filter_cols[6]:
         if st.button("Refresh", width="stretch"):
@@ -1093,7 +1187,6 @@ def render() -> None:
             | filtered_youth_df["county"].astype(str).str.lower().str.contains(search_query)
         ]
 
-    metrics = load_dashboard_metrics(filtered_youth_df, active_resources)
     risk_breakdown = load_risk_breakdown(filtered_youth_df)
     housing_df, employment_df = load_housing_employment_distribution(filtered_youth_df)
     education_df = load_education_distribution(filtered_youth_df)
@@ -1106,6 +1199,13 @@ def render() -> None:
             [str(value) for value in filtered_youth_df["youth_id"].astype(str).tolist()],
             limit=10,
         )
+        candidate_queue_df = load_candidate_promotion_queue(connection)
+
+    metrics = load_dashboard_metrics(
+        filtered_youth_df,
+        active_resources,
+        candidate_queue_count=len(candidate_queue_df),
+    )
 
     render_metric_cards(metrics)
     st.markdown('<div style="height: 0.35rem;"></div>', unsafe_allow_html=True)
@@ -1216,6 +1316,36 @@ def render() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
     with bottom_right:
+        st.markdown('<div id="candidate-queue"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="overview-side-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="overview-panel-title">Candidate Queue</div>', unsafe_allow_html=True)
+        st.caption("Completed candidate intakes ready to promote into teen records.")
+        if candidate_queue_df.empty:
+            st.info("No candidate intakes are waiting for promotion.")
+            if st.button("Start Candidate Intake", width="stretch", key="overview_start_candidate_intake"):
+                next_url = switch_dashboard("ai_assistant", current_key="overview")
+                st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+                st.stop()
+        else:
+            st.dataframe(candidate_queue_df, hide_index=True, width="stretch")
+            action_col1, action_col2, action_col3 = st.columns(3)
+            with action_col1:
+                if st.button("Start Candidate Intake", width="stretch", key="overview_start_candidate_intake_from_queue"):
+                    next_url = switch_dashboard("ai_assistant", current_key="overview")
+                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+                    st.stop()
+            with action_col2:
+                if st.button("Promote In Caseworker", width="stretch", key="overview_promote_candidate"):
+                    next_url = switch_dashboard("caseworker_dashboard", current_key="overview")
+                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+                    st.stop()
+            with action_col3:
+                if st.button("Open AI Assistant", width="stretch", key="overview_open_ai_assistant"):
+                    next_url = switch_dashboard("ai_assistant", current_key="overview")
+                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+                    st.stop()
+        st.markdown('</div>', unsafe_allow_html=True)
+
         st.markdown('<div class="overview-side-panel">', unsafe_allow_html=True)
         st.markdown('<div class="overview-panel-title">Insight Callouts</div>', unsafe_allow_html=True)
         insights = build_insight_callouts(metrics, county_needs_df, top_resources_df, risk_breakdown)
