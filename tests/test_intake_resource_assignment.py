@@ -62,6 +62,21 @@ def _create_base_schema(connection: sqlite3.Connection) -> None:
             answer_type TEXT,
             answered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE recommendations (
+            recommendation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            youth_id TEXT NOT NULL,
+            resource_id TEXT NOT NULL,
+            risk_score_id INTEGER,
+            intake_session_id TEXT,
+            match_score REAL,
+            priority_rank INTEGER,
+            recommendation_reason TEXT,
+            recommendation_source TEXT NOT NULL DEFAULT 'ai_matcher',
+            recommendation_status TEXT NOT NULL DEFAULT 'proposed',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (youth_id, resource_id, intake_session_id)
+        );
         """
     )
 
@@ -256,6 +271,21 @@ def test_assign_resources_from_youth_intake_links_youth_profile() -> None:
         assert row[1] is None
         assert row[2] == "youth"
         assert row[3] == "INTAKE-YOUTH-001"
+
+        recommendation_rows = connection.execute(
+            """
+            SELECT youth_id, resource_id, intake_session_id, recommendation_status, recommendation_source
+            FROM recommendations
+            WHERE youth_id = 'YP-0001'
+              AND intake_session_id = 'INTAKE-YOUTH-001'
+            """
+        ).fetchall()
+        assert recommendation_rows
+        for recommendation_row in recommendation_rows:
+            assert recommendation_row[0] == "YP-0001"
+            assert recommendation_row[2] == "INTAKE-YOUTH-001"
+            assert recommendation_row[3] == "proposed"
+            assert recommendation_row[4] == "ai_intake_mapper_v1"
 
 
 def test_map_answers_to_needs_scores_expected_categories() -> None:

@@ -203,6 +203,34 @@ Future Path AI Assistant is a guided intake workflow that asks structured questi
 - Includes emergency guidance if safety concerns are reported
 - Encourages minimal sensitive data collection
 
+## How To Add A New Teen
+
+Future Path now supports a candidate-first onboarding workflow so intake can happen before a full youth profile exists.
+
+### Candidate-First Workflow
+
+1. Open the Caseworker Dashboard
+2. In Quick Actions, click **Start Candidate Intake**
+3. In AI Assistant, choose **candidate** profile type and complete the intake session
+4. Return to Caseworker Dashboard
+5. In **Candidate Intake Promotion**, select the completed candidate intake
+6. Fill in youth profile details (name, age, county, education, employment, housing, and related fields)
+7. Confirm or edit the suggested Youth ID
+8. Click **Promote Candidate To Teen**
+
+What promotion does automatically:
+
+- Creates a new row in `youth_profiles`
+- Optionally writes first/last name into `caseworker_youth`
+- Converts linked intake sessions from candidate to youth profile type
+- Migrates candidate-linked assigned resources to the new youth ID
+- Optionally assigns the new teen case to the active caseworker
+
+### Where To Find Candidates Ready For Promotion
+
+- Overview dashboard: **Candidates Waiting** KPI and **Candidate Queue** panel
+- Caseworker dashboard: **Candidate Intake Promotion** section
+
 ## Dashboard Screenshots
 
 ### Dashboard Overview
@@ -234,6 +262,15 @@ pytest tests/test_intake_resource_assignment.py -q
 ```
 
 ## Future Improvements
+
+### Other Actions To Add Next
+
+- Add one-click candidate ID generation in AI Assistant so caseworkers do not type IDs manually
+- Allow selecting a candidate directly from Overview and opening Caseworker promotion with that candidate preselected
+- Add a required-fields checklist and validation summary before final promotion submit
+- Add an audit trail table for promotion events (who promoted, when, and from which candidate ID)
+- Add optional duplicate checks (name + age + county) before creating a new youth profile
+- Add notification banner for newly promoted teens visible to caseworkers on login
 
 - Add role-based access and authentication for caseworker views
 - Introduce configurable scoring weights and explainability panels

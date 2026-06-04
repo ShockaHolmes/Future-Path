@@ -113,6 +113,31 @@ def inject_ai_assistant_styles() -> None:
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%) !important;
+            color: #16356c !important;
+            border-right: 1px solid #d9e5fb !important;
+        }
+
+        [data-testid="stSidebar"] * {
+            color: #173775 !important;
+        }
+
+        [data-testid="stSidebar"] div[data-baseweb="input"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="select"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="textarea"] > div {
+            background: #ffffff !important;
+            border: 1px solid #cfe0f5 !important;
+            color: #173775 !important;
+        }
+
+        [data-testid="stSidebar"] input,
+        [data-testid="stSidebar"] textarea,
+        [data-testid="stSidebar"] span {
+            color: #173775 !important;
+            opacity: 1 !important;
+        }
+
         .main .block-container {
             max-width: 1080px;
             padding-top: 1.2rem;
@@ -160,12 +185,6 @@ def inject_ai_assistant_styles() -> None:
             font-weight: 800;
         }
 
-        .ai-header-close {
-            color: #26478f;
-            font-weight: 700;
-            font-size: 1rem;
-        }
-
         .ai-section-card {
             border: 1px solid #dce7ff;
             border-radius: 16px;
@@ -204,6 +223,59 @@ def inject_ai_assistant_styles() -> None:
             font-size: 1rem;
             font-weight: 700;
             margin-bottom: 10px;
+        }
+
+        .ai-question-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 8px;
+        }
+
+        .ai-question-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: #ffffff;
+            box-shadow: 0 10px 24px rgba(19, 54, 142, 0.14);
+            flex: 0 0 58px;
+        }
+
+        .ai-question-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .ai-selection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid #c8ead6;
+            background: linear-gradient(180deg, #eefaf4 0%, #e9f7ef 100%);
+            color: #1d6a47;
+            font-weight: 700;
+        }
+
+        .ai-selection-check {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #1f7b4f;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 800;
+            flex: 0 0 28px;
         }
 
         .ai-need-chip,
@@ -398,12 +470,25 @@ def inject_ai_assistant_styles() -> None:
             box-shadow: 0 4px 10px rgba(19, 54, 142, 0.03) !important;
             font-weight: 700 !important;
             line-height: 1.2 !important;
+            white-space: normal !important;
         }
 
         .ai-option-grid div[data-testid="stButton"] > button:hover {
             background: #f7fbff !important;
             border-color: #a9c2f7 !important;
             transform: translateY(-1px);
+        }
+
+        .ai-option-grid div[data-testid="stButton"] > button[kind="primary"] {
+            background: linear-gradient(180deg, #1f8aa0 0%, #0f7286 100%) !important;
+            color: #ffffff !important;
+            border: 1px solid #0f7286 !important;
+            box-shadow: 0 10px 22px rgba(15, 114, 134, 0.24) !important;
+        }
+
+        .ai-option-grid div[data-testid="stButton"] > button[kind="primary"]:hover {
+            background: linear-gradient(180deg, #238fa6 0%, #126f82 100%) !important;
+            border-color: #126f82 !important;
         }
 
         .ai-option-grid div[data-testid="stButton"] > button:focus {
@@ -475,7 +560,72 @@ def inject_ai_assistant_styles() -> None:
     )
 
 
-def format_option_label(value: str) -> str:
+def format_option_label(question_key: str, value: str) -> str:
+    question_specific_mapping = {
+        "housing_status": {
+            "stable": "I have a stable place lined up",
+            "temporary": "I am in temporary housing",
+            "couch_surfing": "I am couch surfing",
+            "shelter": "I am staying in a shelter",
+            "at_risk": "I am at risk of homelessness",
+        },
+        "employment_status": {
+            "full_time": "I am employed full-time",
+            "part_time": "I am employed part-time",
+            "unemployed": "I am currently unemployed",
+            "training": "I am in training or internship",
+            "seasonal": "I have seasonal work",
+        },
+        "education_status": {
+            "in_school": "I am currently in school",
+            "diploma_or_ged": "I completed diploma or GED",
+            "no_diploma_or_ged": "I do not have a diploma or GED",
+            "postsecondary": "I am in postsecondary education",
+            "not_enrolled": "I am not enrolled right now",
+        },
+        "transportation_access": {
+            "reliable": "My transportation is reliable",
+            "limited": "My transportation is limited",
+            "none": "I have no reliable transportation",
+        },
+        "food_access": {
+            "yes": "Yes, I have consistent food access",
+            "sometimes": "Sometimes, but not always",
+            "no": "No, I need food support",
+        },
+        "health_wellness_need": {
+            "yes": "Yes, I need health or wellness support",
+            "no": "No, I do not need support right now",
+        },
+        "documents_status": {
+            "all": "I have all key documents",
+            "some": "I have some documents",
+            "none": "I do not have my key documents",
+        },
+        "support_system": {
+            "strong": "I have a strong support system",
+            "limited": "My support system is limited",
+            "none": "I do not have a support system right now",
+        },
+        "safety_concern": {
+            "yes": "Yes, I have an immediate safety concern",
+            "no": "No, I do not have an immediate safety concern",
+        },
+        "primary_need": {
+            "housing": "Housing stability",
+            "employment": "Employment",
+            "education": "Education",
+            "transportation": "Transportation",
+            "food": "Food access",
+            "health_wellness": "Health and wellness",
+            "documents": "ID and documents",
+            "support_system": "Support system",
+            "safety": "Safety",
+        },
+    }
+    if question_key in question_specific_mapping and value in question_specific_mapping[question_key]:
+        return question_specific_mapping[question_key][value]
+
     mapping = {
         "stable": "I have a stable place lined up",
         "temporary": "I am in temporary housing",
@@ -521,6 +671,23 @@ def format_need_label(value: str) -> str:
 
 def option_letter(index: int) -> str:
     return chr(ord("A") + index)
+
+
+def question_icon_markup(question_key: str) -> str:
+    icon_map = {
+        "housing_status": ("linear-gradient(180deg, #33b5bd 0%, #2399a2 100%)", "&#127968;"),
+        "employment_status": ("linear-gradient(180deg, #3f87eb 0%, #2d6fd6 100%)", "&#128188;"),
+        "education_status": ("linear-gradient(180deg, #ffc04a 0%, #f0aa27 100%)", "&#127891;"),
+        "transportation_access": ("linear-gradient(180deg, #9a6bf3 0%, #7d4fd7 100%)", "&#128652;"),
+        "food_access": ("linear-gradient(180deg, #45c265 0%, #2fa84e 100%)", "&#128717;"),
+        "health_wellness_need": ("linear-gradient(180deg, #ff6a7c 0%, #ec4c61 100%)", "&#10084;"),
+        "documents_status": ("linear-gradient(180deg, #3f87eb 0%, #2d6fd6 100%)", "&#128179;"),
+        "support_system": ("linear-gradient(180deg, #9a6bf3 0%, #7d4fd7 100%)", "&#128101;"),
+        "safety_concern": ("linear-gradient(180deg, #9a6bf3 0%, #7d4fd7 100%)", "&#128737;"),
+        "primary_need": ("linear-gradient(180deg, #0fa9b9 0%, #0b8896 100%)", "&#10024;"),
+    }
+    background, icon = icon_map.get(question_key, ("linear-gradient(180deg, #6d8fd7 0%, #5275bc 100%)", "&#10022;"))
+    return f'<div class="ai-question-icon" style="background:{background};">{icon}</div>'
 
 
 def infer_need_and_risk(question_key: str, choice: str) -> tuple[str, str]:
@@ -574,7 +741,46 @@ def profile_exists(connection: sqlite3.Connection, profile_type: str, youth_id: 
     row = connection.execute("SELECT 1 FROM youth_profiles WHERE youth_id = ?", (youth_id.strip(),)).fetchone()
     if row is None:
         return False, f"Youth ID not found: {youth_id.strip()}"
+
+    completed_row = connection.execute(
+        """
+        SELECT completed_at
+        FROM intake_sessions
+        WHERE youth_id = ?
+          AND profile_type = 'youth'
+          AND session_status = 'completed'
+        ORDER BY COALESCE(completed_at, started_at, '') DESC
+        LIMIT 1
+        """,
+        (youth_id.strip(),),
+    ).fetchone()
+    if completed_row is not None:
+        completed_at = str(completed_row[0] or "").replace("T", " ")[:16]
+        return False, f"AI Intake already completed for {youth_id.strip()} on {completed_at or 'a previous session'}."
+
     return True, ""
+
+
+def generate_next_candidate_id(connection: sqlite3.Connection) -> str:
+    if not table_exists(connection, "intake_sessions"):
+        return "CP-0001"
+
+    rows = connection.execute(
+        """
+        SELECT candidate_profile_id
+        FROM intake_sessions
+        WHERE candidate_profile_id IS NOT NULL
+          AND candidate_profile_id LIKE 'CP-%'
+        """
+    ).fetchall()
+
+    current_max = 0
+    for row in rows:
+        candidate_id = str(row[0] or "")
+        suffix = candidate_id[3:]
+        if suffix.isdigit():
+            current_max = max(current_max, int(suffix))
+    return f"CP-{current_max + 1:04d}"
 
 
 def start_intake_session(connection: sqlite3.Connection, session_id: str, profile_type: str, youth_id: str, candidate_id: str) -> None:
@@ -664,24 +870,48 @@ def render_question_input(connection: sqlite3.Connection, db_path: Path) -> None
 
     st.markdown('<div class="ai-question-shell">', unsafe_allow_html=True)
     lead_text = "Let's start with housing." if current_index == 0 else "Choose the answer that best fits your situation."
-    st.markdown(f'<div class="ai-question-lead">{lead_text}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="ai-question">{question["prompt"]}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'''
+        <div class="ai-question-header">
+            {question_icon_markup(key)}
+            <div class="ai-question-copy">
+                <div class="ai-question-lead">{lead_text}</div>
+                <div class="ai-question">{question["prompt"]}</div>
+            </div>
+        </div>
+        ''',
+        unsafe_allow_html=True,
+    )
 
     current_choice = st.session_state.get("assistant_selected_choice", question["options"][0])
     choice_value = current_choice if current_choice in question["options"] else question["options"][0]
 
     st.markdown('<div class="ai-option-grid">', unsafe_allow_html=True)
     for index, option in enumerate(question["options"]):
-        option_label = format_option_label(option)
+        option_label = format_option_label(key, option)
         button_label = f"{option_letter(index)}  {option_label}"
         if option == choice_value:
-            button_label += "  ✓"
-        if st.button(button_label, key=f"assistant_option_{current_index}_{option}", width="stretch"):
+            button_label = f"{option_letter(index)}  {option_label}   [Selected]"
+        if st.button(
+            button_label,
+            key=f"assistant_option_{current_index}_{option}",
+            width="stretch",
+            type="primary" if option == choice_value else "secondary",
+        ):
             choice_value = option
             st.session_state["assistant_selected_choice"] = option
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.session_state["assistant_selected_choice"] = choice_value
+    st.markdown(
+        f'''
+        <div class="ai-selection-indicator">
+            <span class="ai-selection-check">&#10003;</span>
+            <span>Selected answer: {format_option_label(key, choice_value)}</span>
+        </div>
+        ''',
+        unsafe_allow_html=True,
+    )
 
     need_label, risk_level = infer_need_and_risk(key, choice_value)
     st.markdown(
@@ -845,9 +1075,10 @@ def render_final_summary() -> None:
         unsafe_allow_html=True,
     )
 
-    if st.button("Start New Intake", width="stretch"):
-        reset_assistant_state()
-        st.rerun()
+    if st.session_state.get("assistant_profile_type") == "candidate":
+        if st.button("Start New Intake", width="stretch"):
+            reset_assistant_state()
+            st.rerun()
 
 
 def render() -> None:
@@ -868,7 +1099,6 @@ def render() -> None:
         """
         <div class="ai-header-card">
             <div class="ai-header-title">Future Path AI Assistant</div>
-            <div class="ai-header-close">Close ✕</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -897,11 +1127,29 @@ def render() -> None:
             value=st.session_state["assistant_youth_id"],
             disabled=profile_type != "youth",
         )
-        candidate_id_input = st.text_input(
-            "Candidate Profile ID",
-            value=st.session_state["assistant_candidate_id"],
-            disabled=profile_type != "candidate",
-        )
+        candidate_id_col, candidate_action_col = st.columns([2.2, 1])
+        with candidate_id_col:
+            candidate_id_input = st.text_input(
+                "Candidate Profile ID",
+                value=st.session_state["assistant_candidate_id"],
+                disabled=profile_type != "candidate",
+            )
+        with candidate_action_col:
+            st.write("")
+            st.write("")
+            if st.button(
+                "Generate ID",
+                width="stretch",
+                key="assistant_generate_candidate_id",
+                disabled=profile_type != "candidate",
+            ):
+                with sqlite3.connect(db_path) as generate_connection:
+                    generated_id = generate_next_candidate_id(generate_connection)
+                st.session_state["assistant_candidate_id"] = generated_id
+                st.rerun()
+
+        if profile_type == "candidate":
+            st.caption("Tip: Use Generate ID for quick onboarding, then start intake.")
         youth_id = youth_id_input or ""
         candidate_id = candidate_id_input or ""
 

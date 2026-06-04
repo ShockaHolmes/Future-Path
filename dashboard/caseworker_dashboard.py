@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 import sys
+import smtplib
 from datetime import date
+from email.message import EmailMessage
 from pathlib import Path
 from uuid import uuid4
 
@@ -15,6 +18,19 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from assign_resources_from_intake import ensure_assigned_resources_table_integrity
+from candidate_promotion import (
+    COUNTY_OPTIONS,
+    EDUCATION_OPTIONS,
+    EMPLOYMENT_OPTIONS,
+    HOUSING_OPTIONS,
+    MENTOR_STATUS_OPTIONS,
+    PRIOR_HOMELESSNESS_OPTIONS,
+    build_profile_defaults_from_answers,
+    generate_next_youth_id,
+    load_candidate_intake_answers,
+    load_promotable_candidate_intakes,
+    promote_candidate_to_youth,
+)
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
 from future_path_ai_intake import ensure_intake_tables
 
@@ -132,6 +148,33 @@ def ensure_caseworker_tables(connection: sqlite3.Connection) -> None:
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS outreach_emails (
+            email_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            youth_id TEXT NOT NULL,
+            resource_id TEXT,
+            recipient_role TEXT NOT NULL CHECK (recipient_role IN ('youth', 'resource_center')),
+            recipient_name TEXT,
+            recipient_email TEXT,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            delivery_status TEXT NOT NULL DEFAULT 'draft' CHECK (delivery_status IN ('draft', 'queued', 'sent', 'failed')),
+            created_by_caseworker_id TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            sent_at TEXT,
+            last_error TEXT,
+            FOREIGN KEY (youth_id) REFERENCES youth_profiles(youth_id) ON DELETE CASCADE,
+            FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE SET NULL,
+            FOREIGN KEY (created_by_caseworker_id) REFERENCES caseworkers(caseworker_id) ON DELETE SET NULL
+        )
+        """
+    )
+    outreach_columns = {row[1] for row in connection.execute("PRAGMA table_info(outreach_emails)").fetchall()}
+    if "sent_at" not in outreach_columns:
+        connection.execute("ALTER TABLE outreach_emails ADD COLUMN sent_at TEXT")
+    if "last_error" not in outreach_columns:
+        connection.execute("ALTER TABLE outreach_emails ADD COLUMN last_error TEXT")
 
 
 def upsert_caseworker(
@@ -457,6 +500,204 @@ def load_resource_catalog(connection: sqlite3.Connection) -> pd.DataFrame:
     )
 
 
+def load_youth_contact(connection: sqlite3.Connection, youth_id: str) -> tuple[str, str]:
+    if not table_exists(connection, "caseworker_youth"):
+        return "Youth Participant", ""
+
+    column_names = {row[1] for row in connection.execute("PRAGMA table_info(caseworker_youth)").fetchall()}
+    email_col = "email" if "email" in column_names else None
+    email_select = "COALESCE(email, '')" if email_col else "''"
+
+    row = connection.execute(
+        f"""
+        SELECT
+            COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), youth_id) AS full_name,
+            {email_select} AS email
+        FROM caseworker_youth
+        WHERE youth_id = ?
+        LIMIT 1
+        """,
+        (youth_id,),
+    ).fetchone()
+    if row is None:
+        return youth_id, ""
+
+    return str(row[0]), str(row[1] or "")
+
+
+def update_recommendation_statuses(
+    connection: sqlite3.Connection,
+    accepted_resource_ids: list[str],
+    rejected_resource_ids: list[str],
+    youth_id: str,
+) -> None:
+    for resource_id in accepted_resource_ids:
+        connection.execute(
+            """
+            UPDATE recommendations
+            SET recommendation_status = 'accepted'
+            WHERE youth_id = ?
+              AND resource_id = ?
+            """,
+            (youth_id, resource_id),
+        )
+
+    for resource_id in rejected_resource_ids:
+        connection.execute(
+            """
+            UPDATE recommendations
+            SET recommendation_status = 'rejected'
+            WHERE youth_id = ?
+              AND resource_id = ?
+            """,
+            (youth_id, resource_id),
+        )
+
+
+def save_outreach_email_draft(
+    connection: sqlite3.Connection,
+    youth_id: str,
+    resource_id: str | None,
+    recipient_role: str,
+    recipient_name: str,
+    recipient_email: str,
+    subject: str,
+    body: str,
+    caseworker_id: str,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO outreach_emails (
+            youth_id,
+            resource_id,
+            recipient_role,
+            recipient_name,
+            recipient_email,
+            subject,
+            body,
+            delivery_status,
+            created_by_caseworker_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?)
+        """,
+        (
+            youth_id,
+            resource_id,
+            recipient_role,
+            recipient_name.strip() or None,
+            recipient_email.strip() or None,
+            subject.strip(),
+            body.strip(),
+            caseworker_id,
+        ),
+    )
+
+
+def load_outreach_emails(connection: sqlite3.Connection, youth_id: str) -> pd.DataFrame:
+    if not table_exists(connection, "outreach_emails"):
+        return pd.DataFrame()
+
+    return pd.read_sql_query(
+        """
+        SELECT
+            email_id,
+            recipient_role,
+            COALESCE(recipient_name, '') AS recipient_name,
+            COALESCE(recipient_email, '') AS recipient_email,
+            subject,
+            body,
+            delivery_status,
+            created_at,
+            COALESCE(sent_at, '') AS sent_at,
+            COALESCE(last_error, '') AS last_error
+        FROM outreach_emails
+        WHERE youth_id = ?
+        ORDER BY email_id DESC
+        LIMIT 100
+        """,
+        connection,
+        params=[youth_id],
+    )
+
+
+def update_outreach_email_status(
+    connection: sqlite3.Connection,
+    email_id: int,
+    delivery_status: str,
+    last_error: str = "",
+) -> None:
+    connection.execute(
+        """
+        UPDATE outreach_emails
+        SET delivery_status = ?,
+            sent_at = CASE WHEN ? = 'sent' THEN CURRENT_TIMESTAMP ELSE sent_at END,
+            last_error = CASE WHEN ? = 'failed' THEN ? ELSE '' END
+        WHERE email_id = ?
+        """,
+        (delivery_status, delivery_status, delivery_status, last_error.strip(), email_id),
+    )
+
+
+def send_email_via_smtp(
+    smtp_host: str,
+    smtp_port: int,
+    smtp_username: str,
+    smtp_password: str,
+    smtp_use_tls: bool,
+    sender_email: str,
+    recipient_email: str,
+    subject: str,
+    body: str,
+) -> None:
+    message = EmailMessage()
+    message["From"] = sender_email
+    message["To"] = recipient_email
+    message["Subject"] = subject
+    message.set_content(body)
+
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as smtp:
+        if smtp_use_tls:
+            smtp.starttls()
+        if smtp_username.strip():
+            smtp.login(smtp_username.strip(), smtp_password)
+        smtp.send_message(message)
+
+
+def build_outreach_email_drafts(
+    youth_name: str,
+    youth_id: str,
+    caseworker_name: str,
+    resources: list[dict[str, str]],
+) -> tuple[str, str, list[tuple[str, str, str, str]]]:
+    resource_lines = "\n".join(
+        [f"- {item['resource_name']} ({item['category']}) | Next step: {item['next_step']}" for item in resources]
+    )
+    youth_subject = f"Future Path Support Plan Update for {youth_name}"
+    youth_body = (
+        f"Hi {youth_name},\n\n"
+        f"Your caseworker, {caseworker_name}, reviewed your AI intake and approved the following support resources:\n"
+        f"{resource_lines}\n\n"
+        "Please review your Youth Dashboard for details and follow the next steps.\n\n"
+        "If you need help, reply to your caseworker or submit a Help Request in Future Path.\n\n"
+        "- Future Path Team"
+    )
+
+    resource_drafts: list[tuple[str, str, str, str]] = []
+    for item in resources:
+        subject = f"Action Needed: Referral for {youth_name} ({youth_id})"
+        body = (
+            f"Hello {item['resource_name']} Team,\n\n"
+            f"A Future Path caseworker has approved a referral for {youth_name} ({youth_id}).\n"
+            f"Resource category: {item['category']}\n"
+            f"Requested next step: {item['next_step']}\n\n"
+            "Please confirm intake availability and next appointment details.\n\n"
+            f"Assigned by: {caseworker_name}\n"
+            "- Future Path"
+        )
+        resource_drafts.append((item["resource_id"], item["resource_name"], subject, body))
+
+    return youth_subject, youth_body, resource_drafts
+
+
 def assign_resources(
     connection: sqlite3.Connection,
     youth_id: str,
@@ -554,6 +795,15 @@ def assign_resources(
                 assignment_note.strip() or None,
             ),
         )
+        if recommendation_id is not None:
+            connection.execute(
+                """
+                UPDATE recommendations
+                SET recommendation_status = 'accepted'
+                WHERE recommendation_id = ?
+                """,
+                (recommendation_id,),
+            )
         inserted += 1
 
     return inserted, skipped
@@ -805,6 +1055,10 @@ def load_high_risk_alerts(connection: sqlite3.Connection, caseworker_id: str) ->
     )
 
 
+def _option_index(options: list[str], value: str) -> int:
+    return options.index(value) if value in options else 0
+
+
 def inject_caseworker_dashboard_styles() -> None:
     st.markdown(
         """
@@ -818,6 +1072,31 @@ def inject_caseworker_dashboard_styles() -> None:
                 linear-gradient(180deg, #f9fbff 0%, #f4f8ff 100%);
             font-family: 'Plus Jakarta Sans', sans-serif;
             color: #0b1b51;
+        }
+
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%) !important;
+            color: #16356c !important;
+            border-right: 1px solid #d9e5fb !important;
+        }
+
+        [data-testid="stSidebar"] * {
+            color: #173775 !important;
+        }
+
+        [data-testid="stSidebar"] div[data-baseweb="input"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="select"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="textarea"] > div {
+            background: #ffffff !important;
+            border: 1px solid #cfe0f5 !important;
+            color: #173775 !important;
+        }
+
+        [data-testid="stSidebar"] input,
+        [data-testid="stSidebar"] textarea,
+        [data-testid="stSidebar"] span {
+            color: #173775 !important;
+            opacity: 1 !important;
         }
 
         .main .block-container {
@@ -1231,6 +1510,22 @@ def render() -> None:
     render_top_navigation("caseworker_dashboard")
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
+    st.sidebar.divider()
+    st.sidebar.subheader("Email Delivery (Optional SMTP)")
+    smtp_host = st.sidebar.text_input("SMTP Host", value=os.getenv("FUTURE_PATH_SMTP_HOST", "")).strip()
+    smtp_port = int(
+        st.sidebar.number_input(
+            "SMTP Port",
+            min_value=1,
+            max_value=65535,
+            value=int(os.getenv("FUTURE_PATH_SMTP_PORT", "587")),
+            step=1,
+        )
+    )
+    smtp_username = st.sidebar.text_input("SMTP Username", value=os.getenv("FUTURE_PATH_SMTP_USERNAME", "")).strip()
+    smtp_password = st.sidebar.text_input("SMTP Password", type="password", value=os.getenv("FUTURE_PATH_SMTP_PASSWORD", ""))
+    smtp_sender = st.sidebar.text_input("From Email", value=os.getenv("FUTURE_PATH_SMTP_FROM", "no-reply@futurepath.local")).strip()
+    smtp_use_tls = st.sidebar.checkbox("Use STARTTLS", value=True)
     if not db_path.exists():
         st.error(f"Database not found at: {db_path}")
         st.info("Run the pipeline first, then reload this dashboard.")
@@ -1471,11 +1766,12 @@ def render() -> None:
                     "youth_name": "Youth",
                     "risk_level": "Risk",
                     "top_need_category": "Top Need",
+                    "intake_status": "AI Intake",
                     "county": "County",
                 }
             )
             st.dataframe(
-                available_preview[["Youth", "Risk", "Top Need", "County"]].head(8),
+                available_preview[["Youth", "Risk", "Top Need", "AI Intake", "County"]].head(8),
                 hide_index=True,
                 width="stretch",
             )
@@ -1503,11 +1799,12 @@ def render() -> None:
         lambda value: f"{int(value)}y" if pd.notna(value) else "-"
     )
     assigned_view["Risk Level"] = assigned_view["risk_level"].astype(str)
+    assigned_view["AI Intake"] = assigned_view["intake_status"].astype(str).str.replace("_", " ").str.title()
     assigned_view["Transition Date"] = assigned_view["age"].apply(estimate_transition_date)
     assigned_view["Next Follow-up"] = assigned_view["next_follow_up_date"].apply(format_date_label)
     st.markdown('<div class="cw-section-card">', unsafe_allow_html=True)
     st.dataframe(
-        assigned_view[["Youth", "Age", "Risk Level", "Transition Date", "Next Follow-up"]],
+        assigned_view[["Youth", "Age", "Risk Level", "AI Intake", "Transition Date", "Next Follow-up"]],
         hide_index=True,
         width="stretch",
     )
@@ -1541,8 +1838,11 @@ def render() -> None:
     with quick_actions_col:
         st.subheader("Quick Actions")
         st.markdown('<div class="cw-section-card">', unsafe_allow_html=True)
-        if st.button("Add New Youth", width="stretch"):
-            st.info("Use the AI Assistant page to start a youth intake session for a new profile.")
+        if st.button("Start Candidate Intake", width="stretch"):
+            next_url = switch_dashboard("ai_assistant", current_key="caseworker_dashboard")
+            st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+            st.stop()
+        st.caption("Open AI Assistant, choose candidate profile, and complete intake before promotion.")
         if st.button("Schedule Appointment", width="stretch"):
             st.info("Select a youth below, then use Quick Follow-Up Date in the case management section.")
         if st.button("Create Follow-up Task", width="stretch"):
@@ -1555,6 +1855,180 @@ def render() -> None:
             st.info("Run src/calculate_risk_scores.py and refresh this dashboard to update risk indicators.")
         st.markdown('<div class="cw-table-subtle">View all tools</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
+
+    with sqlite3.connect(db_path) as connection:
+        candidate_intakes_df = load_promotable_candidate_intakes(connection)
+
+    st.subheader("Candidate Intake Promotion")
+    st.markdown('<div class="cw-section-card">', unsafe_allow_html=True)
+    st.write("Use candidate intake first when a teen does not have a full profile yet, then promote that completed intake into an active youth record.")
+
+    if candidate_intakes_df.empty:
+        st.info("No completed candidate intakes are ready for promotion yet.")
+    else:
+        candidate_intakes_df = candidate_intakes_df.copy()
+        candidate_intakes_df["display_label"] = candidate_intakes_df.apply(
+            lambda row: (
+                f"{row['candidate_profile_id']} | Top Need: {row['top_need_category']} | "
+                f"Completed: {str(row['completed_at'] or row['started_at'])[:10]} | "
+                f"Assigned Resources: {int(row['assignment_count'])}"
+            ),
+            axis=1,
+        )
+
+        selected_candidate_label = st.selectbox(
+            "Completed Candidate Intake",
+            options=candidate_intakes_df["display_label"].tolist(),
+            key="candidate_promotion_select",
+        )
+        selected_candidate_row = candidate_intakes_df[
+            candidate_intakes_df["display_label"] == selected_candidate_label
+        ].iloc[0]
+        selected_candidate_id = str(selected_candidate_row["candidate_profile_id"])
+        selected_intake_session_id = str(selected_candidate_row["intake_session_id"])
+
+        with sqlite3.connect(db_path) as connection:
+            candidate_answers = load_candidate_intake_answers(connection, selected_intake_session_id)
+            suggested_youth_id = generate_next_youth_id(connection)
+
+        inferred_defaults = build_profile_defaults_from_answers(candidate_answers)
+
+        overview_col, answers_col = st.columns([1.1, 1])
+        with overview_col:
+            st.markdown("#### Promotion Details")
+            st.write(f"Candidate ID: {selected_candidate_id}")
+            st.write(f"Intake Session: {selected_intake_session_id}")
+            st.write(f"Top Need Category: {selected_candidate_row['top_need_category']}")
+            st.write(f"Suggested Youth ID: {suggested_youth_id}")
+
+        with answers_col:
+            st.markdown("#### Intake Summary")
+            if candidate_answers:
+                summary_rows = pd.DataFrame(
+                    [
+                        {
+                            "Question": key.replace("_", " ").title(),
+                            "Answer": value.replace("_", " ").title(),
+                        }
+                        for key, value in candidate_answers.items()
+                    ]
+                )
+                st.dataframe(summary_rows, hide_index=True, width="stretch")
+            else:
+                st.caption("No saved answers found for this candidate intake.")
+
+        with st.form(f"promote_candidate_{selected_candidate_id}"):
+            p1, p2, p3 = st.columns(3)
+            with p1:
+                first_name = st.text_input("First Name", key=f"promote_first_name_{selected_candidate_id}")
+                age = int(
+                    st.number_input(
+                        "Age",
+                        min_value=13,
+                        max_value=24,
+                        value=17,
+                        step=1,
+                        key=f"promote_age_{selected_candidate_id}",
+                    )
+                )
+                county = st.selectbox(
+                    "County",
+                    options=COUNTY_OPTIONS,
+                    index=0,
+                    key=f"promote_county_{selected_candidate_id}",
+                )
+            with p2:
+                last_name = st.text_input("Last Name", key=f"promote_last_name_{selected_candidate_id}")
+                youth_id = st.text_input(
+                    "Youth ID",
+                    value=suggested_youth_id,
+                    key=f"promote_youth_id_{selected_candidate_id}",
+                )
+                education = st.selectbox(
+                    "Education",
+                    options=EDUCATION_OPTIONS,
+                    index=_option_index(EDUCATION_OPTIONS, str(inferred_defaults["education"])),
+                    key=f"promote_education_{selected_candidate_id}",
+                )
+            with p3:
+                assign_to_me = st.checkbox("Assign case to me now", value=True, key=f"promote_assign_{selected_candidate_id}")
+                case_priority = st.selectbox(
+                    "Case Priority",
+                    options=["High", "Medium", "Low"],
+                    index=1,
+                    key=f"promote_priority_{selected_candidate_id}",
+                )
+                mentor_status = st.selectbox(
+                    "Mentor Status",
+                    options=MENTOR_STATUS_OPTIONS,
+                    index=_option_index(MENTOR_STATUS_OPTIONS, str(inferred_defaults["mentor_status"])),
+                    key=f"promote_mentor_{selected_candidate_id}",
+                )
+
+            q1, q2, q3, q4 = st.columns(4)
+            with q1:
+                employment = st.selectbox(
+                    "Employment",
+                    options=EMPLOYMENT_OPTIONS,
+                    index=_option_index(EMPLOYMENT_OPTIONS, str(inferred_defaults["employment"])),
+                    key=f"promote_employment_{selected_candidate_id}",
+                )
+            with q2:
+                housing = st.selectbox(
+                    "Housing",
+                    options=HOUSING_OPTIONS,
+                    index=_option_index(HOUSING_OPTIONS, str(inferred_defaults["housing"])),
+                    key=f"promote_housing_{selected_candidate_id}",
+                )
+            with q3:
+                placement_count = int(
+                    st.number_input(
+                        "Placement Count",
+                        min_value=0,
+                        max_value=20,
+                        value=int(inferred_defaults["placement_count"]),
+                        step=1,
+                        key=f"promote_placement_{selected_candidate_id}",
+                    )
+                )
+            with q4:
+                prior_homelessness = st.selectbox(
+                    "Prior Homelessness",
+                    options=PRIOR_HOMELESSNESS_OPTIONS,
+                    index=_option_index(PRIOR_HOMELESSNESS_OPTIONS, str(inferred_defaults["prior_homelessness"])),
+                    key=f"promote_prior_homelessness_{selected_candidate_id}",
+                )
+
+            submitted = st.form_submit_button("Promote Candidate To Teen", type="primary", use_container_width=True)
+
+        if submitted:
+            try:
+                with sqlite3.connect(db_path) as connection:
+                    promote_candidate_to_youth(
+                        connection,
+                        candidate_profile_id=selected_candidate_id,
+                        youth_id=youth_id,
+                        age=age,
+                        county=county,
+                        education=education,
+                        employment=employment,
+                        housing=housing,
+                        mentor_status=mentor_status,
+                        placement_count=placement_count,
+                        prior_homelessness=prior_homelessness,
+                        first_name=first_name,
+                        last_name=last_name,
+                        caseworker_id=caseworker_id if assign_to_me else None,
+                        case_priority=case_priority,
+                    )
+                    connection.commit()
+                st.session_state["selected_youth_id"] = youth_id.strip()
+                st.success(f"Candidate {selected_candidate_id} promoted to youth profile {youth_id.strip()}.")
+                st.rerun()
+            except ValueError as exc:
+                st.error(str(exc))
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader("Case Management Workspace")
@@ -1711,24 +2185,144 @@ def render() -> None:
 
     with actions_col:
         st.subheader("Resource Assignment")
+        approved_ids: list[str] = []
+        rejected_ids: list[str] = []
+        overlap: list[str] = []
         with sqlite3.connect(db_path) as connection:
             recommendations_df = load_recommendations(connection, selected_youth_id)
             catalog_df = load_resource_catalog(connection)
+            youth_name_for_email, youth_email = load_youth_contact(connection, selected_youth_id)
 
         if not recommendations_df.empty:
             st.caption("Recommended resources")
             st.dataframe(
-                recommendations_df[["resource_name", "priority_rank", "match_score", "recommendation_reason"]],
+                recommendations_df[
+                    [
+                        "resource_name",
+                        "priority_rank",
+                        "match_score",
+                        "recommendation_status",
+                        "recommendation_reason",
+                    ]
+                ],
                 hide_index=True,
                 width="stretch",
             )
 
+            rec_map = {
+                f"{row['resource_name']} ({row['resource_id']})": str(row["resource_id"]) for _, row in recommendations_df.iterrows()
+            }
+            approved_labels = st.multiselect(
+                "Approve Recommendations",
+                options=list(rec_map.keys()),
+                key=f"approve_recs_{selected_youth_id}",
+            )
+            rejected_labels = st.multiselect(
+                "Reject Recommendations",
+                options=list(rec_map.keys()),
+                key=f"reject_recs_{selected_youth_id}",
+            )
+            approved_ids = [rec_map[label] for label in approved_labels]
+            rejected_ids = [rec_map[label] for label in rejected_labels]
+
+            overlap = sorted(set(approved_ids) & set(rejected_ids))
+            if overlap:
+                st.error("A resource cannot be both approved and rejected. Remove duplicates before applying.")
+
         options_map = {f"{row['resource_name']} ({row['resource_id']})": str(row['resource_id']) for _, row in catalog_df.iterrows()}
-        selected_labels = st.multiselect("Assign one or more resources", options=list(options_map.keys()))
+        selected_labels = st.multiselect(
+            "Replace / Add Resources (not in recommendations)",
+            options=list(options_map.keys()),
+        )
         selected_resource_ids = [options_map[label] for label in selected_labels]
         assign_priority = st.selectbox("Assignment Priority", ["High", "Medium", "Low"], index=1)
         assign_follow_up = st.date_input("Resource Follow-Up Date", value=date.today(), key="resource_follow_up")
         assign_note = st.text_area("Assignment Note", placeholder="Why this resource was selected")
+
+        if st.button("Apply Recommendation Decisions", type="primary", width="stretch"):
+            if recommendations_df.empty and not selected_resource_ids:
+                st.warning("No recommendations or replacement resources were selected.")
+            elif not recommendations_df.empty and overlap:
+                st.error("Fix approval/rejection overlap before applying decisions.")
+            else:
+                combined_assignments = list(dict.fromkeys(approved_ids + selected_resource_ids))
+                approved_set = set(approved_ids)
+                replaced_set = set(selected_resource_ids)
+
+                with sqlite3.connect(db_path) as connection:
+                    inserted, skipped = assign_resources(
+                        connection,
+                        youth_id=selected_youth_id,
+                        caseworker_id=caseworker_id,
+                        resource_ids=combined_assignments,
+                        priority_level=assign_priority,
+                        follow_up_date=assign_follow_up,
+                        assignment_note=assign_note,
+                    )
+
+                    update_recommendation_statuses(
+                        connection,
+                        accepted_resource_ids=list(approved_set),
+                        rejected_resource_ids=rejected_ids,
+                        youth_id=selected_youth_id,
+                    )
+
+                    email_resource_rows: list[dict[str, str]] = []
+                    for resource_id in combined_assignments:
+                        resource_row = catalog_df[catalog_df["resource_id"] == resource_id]
+                        if resource_row.empty:
+                            continue
+                        row = resource_row.iloc[0]
+                        action_source = "approved recommendation" if resource_id in approved_set else "caseworker replacement"
+                        email_resource_rows.append(
+                            {
+                                "resource_id": str(resource_id),
+                                "resource_name": str(row["resource_name"]),
+                                "category": str(row["category"]),
+                                "next_step": f"Contact via referral method ({action_source}) within 3 business days",
+                            }
+                        )
+
+                    if email_resource_rows:
+                        youth_subject, youth_body, resource_drafts = build_outreach_email_drafts(
+                            youth_name=youth_name_for_email,
+                            youth_id=selected_youth_id,
+                            caseworker_name=active_caseworker_name or caseworker_id,
+                            resources=email_resource_rows,
+                        )
+                        save_outreach_email_draft(
+                            connection,
+                            youth_id=selected_youth_id,
+                            resource_id=None,
+                            recipient_role="youth",
+                            recipient_name=youth_name_for_email,
+                            recipient_email=youth_email,
+                            subject=youth_subject,
+                            body=youth_body,
+                            caseworker_id=caseworker_id,
+                        )
+
+                        for resource_id, resource_name, subject, body in resource_drafts:
+                            save_outreach_email_draft(
+                                connection,
+                                youth_id=selected_youth_id,
+                                resource_id=resource_id,
+                                recipient_role="resource_center",
+                                recipient_name=resource_name,
+                                recipient_email="",
+                                subject=subject,
+                                body=body,
+                                caseworker_id=caseworker_id,
+                            )
+
+                    connection.commit()
+
+                st.success(
+                    "Decisions applied. "
+                    f"Assigned {inserted} resource(s), skipped {skipped}. "
+                    "Email drafts for youth and resource centers were generated."
+                )
+                st.rerun()
 
         if st.button("Assign Selected Resources", type="primary", width="stretch"):
             with sqlite3.connect(db_path) as connection:
@@ -1820,6 +2414,81 @@ def render() -> None:
             st.info("No notes for this case yet.")
         else:
             st.dataframe(notes_df, hide_index=True, width="stretch")
+
+    st.divider()
+    st.subheader("Outreach Email Queue")
+    with sqlite3.connect(db_path) as connection:
+        outreach_df = load_outreach_emails(connection, selected_youth_id)
+
+    if outreach_df.empty:
+        st.info("No outreach drafts found yet. Apply recommendation decisions to generate drafts.")
+    else:
+        st.dataframe(
+            outreach_df[["email_id", "recipient_role", "recipient_name", "recipient_email", "subject", "delivery_status", "created_at", "sent_at"]],
+            hide_index=True,
+            width="stretch",
+        )
+
+        draft_ids = outreach_df[outreach_df["delivery_status"].isin(["draft", "queued", "failed"])]["email_id"].astype(int).tolist()
+        if draft_ids:
+            selected_email_id = st.selectbox("Select Email Draft", options=draft_ids, index=0)
+            selected_email = outreach_df[outreach_df["email_id"] == selected_email_id].iloc[0]
+            st.caption(f"Preview: {selected_email['subject']}")
+            st.text_area("Email Body", value=str(selected_email["body"]), height=170, disabled=True)
+
+            target_email = st.text_input(
+                "Recipient Email Override",
+                value=str(selected_email["recipient_email"]),
+                key=f"recipient_override_{selected_email_id}",
+                help="Use this when draft recipient email is blank or needs correction.",
+            ).strip()
+
+            em1, em2 = st.columns(2)
+            if em1.button("Mark Draft as Sent", width="stretch"):
+                with sqlite3.connect(db_path) as connection:
+                    update_outreach_email_status(connection, int(selected_email_id), "sent")
+                    connection.commit()
+                st.success(f"Email draft {selected_email_id} marked as sent.")
+                st.rerun()
+
+            if em2.button("Send Now via SMTP", type="primary", width="stretch"):
+                if not smtp_host or not smtp_sender:
+                    st.error("SMTP Host and From Email are required to send email.")
+                elif not target_email:
+                    st.error("Recipient email is required. Enter or override recipient email.")
+                else:
+                    try:
+                        send_email_via_smtp(
+                            smtp_host=smtp_host,
+                            smtp_port=smtp_port,
+                            smtp_username=smtp_username,
+                            smtp_password=smtp_password,
+                            smtp_use_tls=smtp_use_tls,
+                            sender_email=smtp_sender,
+                            recipient_email=target_email,
+                            subject=str(selected_email["subject"]),
+                            body=str(selected_email["body"]),
+                        )
+                        with sqlite3.connect(db_path) as connection:
+                            connection.execute(
+                                """
+                                UPDATE outreach_emails
+                                SET recipient_email = ?
+                                WHERE email_id = ?
+                                """,
+                                (target_email, int(selected_email_id)),
+                            )
+                            update_outreach_email_status(connection, int(selected_email_id), "sent")
+                            connection.commit()
+                        st.success(f"Email draft {selected_email_id} sent and marked as sent.")
+                        st.rerun()
+                    except Exception as error:
+                        with sqlite3.connect(db_path) as connection:
+                            update_outreach_email_status(connection, int(selected_email_id), "failed", last_error=str(error))
+                            connection.commit()
+                        st.error(f"SMTP send failed: {error}")
+        else:
+            st.caption("No pending drafts. All outreach emails are already marked sent.")
 
     st.divider()
     st.subheader("Follow-Up Tracker")

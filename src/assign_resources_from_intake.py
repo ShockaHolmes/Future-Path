@@ -482,6 +482,15 @@ def _match_resources(
     return output
 
 
+def _priority_rank(priority_level: str) -> int:
+    normalized = priority_level.strip().lower()
+    if normalized == "high":
+        return 1
+    if normalized == "medium":
+        return 2
+    return 3
+
+
 def assign_resources_from_intake(
     connection: sqlite3.Connection,
     intake_session_id: str | None,
@@ -515,6 +524,38 @@ def assign_resources_from_intake(
         """
     ).fetchall()
     matched = _match_resources(resources, needs, age, county, top_n=top_n)
+
+    if _table_exists(connection, "recommendations") and profile_type == "youth" and youth_id:
+        for row in matched:
+            connection.execute(
+                """
+                INSERT INTO recommendations (
+                    youth_id,
+                    resource_id,
+                    risk_score_id,
+                    intake_session_id,
+                    match_score,
+                    priority_rank,
+                    recommendation_reason,
+                    recommendation_source,
+                    recommendation_status
+                ) VALUES (?, ?, NULL, ?, ?, ?, ?, 'ai_intake_mapper_v1', 'proposed')
+                ON CONFLICT(youth_id, resource_id, intake_session_id) DO UPDATE SET
+                    match_score = excluded.match_score,
+                    priority_rank = excluded.priority_rank,
+                    recommendation_reason = excluded.recommendation_reason,
+                    recommendation_source = excluded.recommendation_source,
+                    recommendation_status = 'proposed'
+                """,
+                (
+                    youth_id,
+                    row["resource_id"],
+                    session_id,
+                    row["match_score"],
+                    _priority_rank(row["priority_level"]),
+                    row["match_reason"],
+                ),
+            )
 
     connection.execute("DELETE FROM assigned_resources WHERE intake_session_id = ?", (session_id,))
 

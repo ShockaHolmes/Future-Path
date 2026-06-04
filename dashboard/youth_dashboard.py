@@ -118,6 +118,31 @@ def inject_styles() -> None:
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
+        [data-testid='stSidebar'] {
+            background: linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%) !important;
+            color: #16356c !important;
+            border-right: 1px solid #d9e5fb !important;
+        }
+
+        [data-testid='stSidebar'] * {
+            color: #173775 !important;
+        }
+
+        [data-testid='stSidebar'] div[data-baseweb='input'] > div,
+        [data-testid='stSidebar'] div[data-baseweb='select'] > div,
+        [data-testid='stSidebar'] div[data-baseweb='textarea'] > div {
+            background: #ffffff !important;
+            border: 1px solid #cfe0f5 !important;
+            color: #173775 !important;
+        }
+
+        [data-testid='stSidebar'] input,
+        [data-testid='stSidebar'] textarea,
+        [data-testid='stSidebar'] span {
+            color: #173775 !important;
+            opacity: 1 !important;
+        }
+
         .main .block-container {
             max-width: 1180px;
             padding-top: 1.1rem;
@@ -200,6 +225,29 @@ def inject_styles() -> None:
             opacity: 1 !important;
         }
 
+        [data-testid='stRadio'] [role='radiogroup'] label,
+        [data-testid='stRadio'] [role='radiogroup'] label p,
+        [data-testid='stRadio'] [role='radiogroup'] label span,
+        [data-baseweb='radio'] label,
+        [data-baseweb='radio'] label p,
+        [data-baseweb='radio'] label span {
+            color: #133a84 !important;
+            opacity: 1 !important;
+            font-weight: 600 !important;
+        }
+
+        [data-testid='stRadio'] [role='radiogroup'] label:hover,
+        [data-baseweb='radio'] label:hover {
+            background: #f2f7ff !important;
+            border-radius: 10px;
+        }
+
+        [data-baseweb='radio'] input:checked + div,
+        [data-testid='stRadio'] input:checked + div {
+            border-color: #0f8293 !important;
+            box-shadow: inset 0 0 0 4px #0f8293 !important;
+        }
+
         .stButton > button {
             border: 1px solid #ccd9f6 !important;
             border-radius: 12px !important;
@@ -251,7 +299,36 @@ def load_youth_options(connection: sqlite3.Connection) -> pd.DataFrame:
         )
 
     frame["youth_id"] = frame["youth_id"].astype(str)
-    frame["display_option"] = frame.apply(lambda row: f"{row['display_name']} ({row['youth_id']})", axis=1)
+
+    if table_exists(connection, "intake_sessions"):
+        intake_status = pd.read_sql_query(
+            """
+            SELECT latest.youth_id, latest.session_status
+            FROM intake_sessions latest
+            INNER JOIN (
+                SELECT youth_id, MAX(intake_session_id) AS latest_session_id
+                FROM intake_sessions
+                WHERE profile_type = 'youth'
+                GROUP BY youth_id
+            ) recent
+                ON recent.youth_id = latest.youth_id
+               AND recent.latest_session_id = latest.intake_session_id
+            WHERE latest.youth_id IS NOT NULL
+            """,
+            connection,
+        )
+        if not intake_status.empty:
+            intake_status["youth_id"] = intake_status["youth_id"].astype(str)
+            frame = frame.merge(intake_status, on="youth_id", how="left")
+
+    if "session_status" not in frame.columns:
+        frame["session_status"] = ""
+
+    def build_display_option(row: pd.Series) -> str:
+        intake_badge = " [AI Intake Complete]" if str(row.get("session_status") or "").lower() == "completed" else ""
+        return f"{row['display_name']}{intake_badge} ({row['youth_id']})"
+
+    frame["display_option"] = frame.apply(build_display_option, axis=1)
     return frame
 
 
@@ -318,6 +395,8 @@ def load_assigned_resources(connection: sqlite3.Connection, youth_id: str) -> pd
             SELECT
                 ar.resource_id,
                 COALESCE(r.resource_name, ar.resource_id) AS resource_name,
+                COALESCE(r.category, 'General Support') AS category,
+                COALESCE(r.referral_method, 'Contact your caseworker for referral instructions') AS referral_method,
                 ar.priority_level,
                 COALESCE(ar.match_score, 0.0) AS match_score,
                 COALESCE(ar.match_reason, '') AS reason,
@@ -335,6 +414,8 @@ def load_assigned_resources(connection: sqlite3.Connection, youth_id: str) -> pd
             SELECT
                 resource_id,
                 resource_id AS resource_name,
+                'General Support' AS category,
+                'Contact your caseworker for referral instructions' AS referral_method,
                 priority_level,
                 COALESCE(match_score, 0.0) AS match_score,
                 COALESCE(match_reason, '') AS reason,
@@ -480,6 +561,24 @@ def load_latest_intake_answers(connection: sqlite3.Connection, youth_id: str) ->
     )
 
 
+def load_latest_intake_session(connection: sqlite3.Connection, youth_id: str) -> pd.DataFrame:
+    if not table_exists(connection, "intake_sessions"):
+        return pd.DataFrame()
+
+    return pd.read_sql_query(
+        """
+        SELECT intake_session_id, session_status, started_at, completed_at, top_need_category
+        FROM intake_sessions
+        WHERE youth_id = ?
+          AND profile_type = 'youth'
+        ORDER BY COALESCE(completed_at, started_at, '') DESC, intake_session_id DESC
+        LIMIT 1
+        """,
+        connection,
+        params=[youth_id],
+    )
+
+
 def load_help_requests(connection: sqlite3.Connection, youth_id: str) -> pd.DataFrame:
     if not table_exists(connection, "help_requests"):
         return pd.DataFrame()
@@ -539,12 +638,86 @@ def status_chip_class(status: str) -> str:
     return "status-recommended"
 
 
-def render_intake_flow(connection: sqlite3.Connection, youth_id: str) -> None:
+def format_question_option_label(question_key: str, value: str) -> str:
+    mapping = {
+        "housing_status": {
+            "stable": "I have a stable place lined up",
+            "temporary": "I am in temporary housing",
+            "couch_surfing": "I am couch surfing",
+            "shelter": "I am staying in a shelter",
+            "at_risk": "I am at risk of homelessness",
+        },
+        "employment_status": {
+            "full_time": "I am employed full-time",
+            "part_time": "I am employed part-time",
+            "unemployed": "I am currently unemployed",
+            "training": "I am in training or internship",
+            "seasonal": "I have seasonal work",
+        },
+        "education_status": {
+            "in_school": "I am currently in school",
+            "diploma_or_ged": "I completed diploma or GED",
+            "no_diploma_or_ged": "I do not have a diploma or GED",
+            "postsecondary": "I am in postsecondary education",
+            "not_enrolled": "I am not enrolled right now",
+        },
+        "transportation_access": {
+            "reliable": "My transportation is reliable",
+            "limited": "My transportation is limited",
+            "none": "I have no reliable transportation",
+        },
+        "food_access": {
+            "yes": "Yes, I have consistent food access",
+            "sometimes": "Sometimes, but not always",
+            "no": "No, I need food support",
+        },
+        "health_wellness_need": {
+            "yes": "Yes, I need health or wellness support",
+            "no": "No, I do not need support right now",
+        },
+        "documents_status": {
+            "all": "I have all key documents",
+            "some": "I have some documents",
+            "none": "I do not have my key documents",
+        },
+        "support_system": {
+            "strong": "I have a strong support system",
+            "limited": "My support system is limited",
+            "none": "I do not have a support system right now",
+        },
+        "safety_concern": {
+            "yes": "Yes, I have an immediate safety concern",
+            "no": "No, I do not have an immediate safety concern",
+        },
+        "primary_need": {
+            "housing": "Housing stability",
+            "employment": "Employment",
+            "education": "Education",
+            "transportation": "Transportation",
+            "food": "Food access",
+            "health_wellness": "Health and wellness",
+            "documents": "ID and documents",
+            "support_system": "Support system",
+            "safety": "Safety",
+        },
+    }
+    if question_key in mapping and value in mapping[question_key]:
+        return mapping[question_key][value]
+    return value.replace("_", " ").title()
+
+
+def render_intake_flow(connection: sqlite3.Connection, youth_id: str, intake_locked: bool, completed_at_label: str) -> None:
     st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
     st.subheader("Start AI Assistant")
     st.write("Answer a few quick questions so we can tailor support for you.")
 
     total_questions = len(QUESTIONS)
+
+    if intake_locked:
+        reset_intake_state()
+        st.success(f"AI Intake already completed{completed_at_label}. Your support plan is active below.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
 
     if not st.session_state["youth_intake_started"]:
         if st.button("Start AI Assistant", type="primary", width="stretch"):
@@ -568,9 +741,6 @@ def render_intake_flow(connection: sqlite3.Connection, youth_id: str) -> None:
 
     if st.session_state["youth_intake_completed"]:
         st.success("Thanks, your intake is complete. Your recommendations are updated below.")
-        if st.button("Start a New Intake", width="stretch"):
-            reset_intake_state()
-            st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
@@ -583,7 +753,7 @@ def render_intake_flow(connection: sqlite3.Connection, youth_id: str) -> None:
         "Choose one",
         options=question["options"],
         horizontal=False,
-        format_func=lambda value: value.replace("_", " ").title(),
+        format_func=lambda value: format_question_option_label(question_key, value),
         index=question["options"].index(default_choice) if default_choice in question["options"] else 0,
         key=f"youth_question_{current_index}",
     )
@@ -696,6 +866,7 @@ def render() -> None:
         followups_df = load_follow_ups(connection, selected_youth_id)
         caseworker_df = load_caseworker_contact(connection, selected_youth_id)
         risk_df = load_latest_risk_score(connection, selected_youth_id)
+        intake_session_df = load_latest_intake_session(connection, selected_youth_id)
         answers_df = load_latest_intake_answers(connection, selected_youth_id)
         help_df = load_help_requests(connection, selected_youth_id)
 
@@ -717,7 +888,20 @@ def render() -> None:
     if not risk_df.empty:
         risk_level = str(risk_df.iloc[0]["risk_level"])
 
-    k1, k2, k3, k4 = st.columns(4)
+    intake_status = "Not Started"
+    intake_completed_label = ""
+    intake_locked = False
+    if not intake_session_df.empty:
+        latest_intake = intake_session_df.iloc[0]
+        intake_status = str(latest_intake.get("session_status") or "Not Started").replace("_", " ").title()
+        completed_value = str(latest_intake.get("completed_at") or "").strip()
+        if completed_value:
+            intake_completed_label = f" on {completed_value[:10]}"
+        intake_locked = str(latest_intake.get("session_status") or "").lower() == "completed"
+        if intake_locked:
+            st.session_state["youth_intake_completed"] = True
+
+    k1, k2, k3, k4, k5 = st.columns(5)
     with k1:
         st.markdown(
             f"""
@@ -742,13 +926,23 @@ def render() -> None:
         st.markdown(
             f"""
             <div class="youth-kpi">
+                <div class="youth-kpi-label">AI Intake Status</div>
+                <div class="youth-kpi-value" style="font-size:1.2rem;">{intake_status}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with k4:
+        st.markdown(
+            f"""
+            <div class="youth-kpi">
                 <div class="youth-kpi-label">Current Risk Level</div>
                 <div class="youth-kpi-value">{risk_level}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-    with k4:
+    with k5:
         st.markdown(
             f"""
             <div class="youth-kpi">
@@ -761,7 +955,7 @@ def render() -> None:
 
     with sqlite3.connect(db_path) as intake_connection:
         intake_connection.row_factory = sqlite3.Row
-        render_intake_flow(intake_connection, selected_youth_id)
+        render_intake_flow(intake_connection, selected_youth_id, intake_locked, intake_completed_label)
 
     left_col, right_col = st.columns([1.35, 1])
 
@@ -783,6 +977,9 @@ def render() -> None:
             for _, row in assigned_df.head(10).iterrows():
                 status = str(row["assignment_status"]).replace("_", " ").title()
                 chip_class = status_chip_class(str(row["assignment_status"]))
+                follow_up = str(row.get("follow_up_date", "")).strip()
+                follow_up_text = f" by {follow_up}" if follow_up else ""
+                next_step = f"{row['referral_method']}{follow_up_text}."
                 st.markdown(
                     f"""
                     <div style="border:1px solid #dce7ff;border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#fff;">
@@ -790,8 +987,9 @@ def render() -> None:
                             <div style="font-weight:800;color:#12367f;">{row['resource_name']}</div>
                             <span class="youth-resource-chip {chip_class}">{status}</span>
                         </div>
-                        <div style="color:#304f88;font-size:0.9rem;margin-top:4px;">Priority: {row['priority_level']} | Match score: {float(row['match_score']):.1f}</div>
+                        <div style="color:#304f88;font-size:0.9rem;margin-top:4px;">Category: {row['category']} | Priority: {row['priority_level']} | Match score: {float(row['match_score']):.1f}</div>
                         <div style="color:#1f3f7e;font-size:0.9rem;margin-top:6px;">Why this was assigned: {row['reason'] or 'Matched to your intake needs.'}</div>
+                        <div style="color:#1f3f7e;font-size:0.9rem;margin-top:6px;"><strong>Next Step:</strong> {next_step}</div>
                     </div>
                     """,
                     unsafe_allow_html=True,
