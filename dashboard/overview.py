@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import sqlite3
 from pathlib import Path
 from textwrap import dedent
@@ -9,6 +10,15 @@ import streamlit as st
 
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
+STATE_ICON_PATH = Path("Assets/FuturePathPNG/State-of-Delaware.png")
+LAUNCH_LOGO_PATH = Path("Assets/FuturePathPNG/Future-Path-Launch-Logo.png")
+
+
+def load_image_data_uri(image_path: Path) -> str | None:
+    if not image_path.exists():
+        return None
+    encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
 
 
 def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
@@ -389,62 +399,42 @@ def render_pie_chart(frame: pd.DataFrame, label_column: str, value_column: str, 
 
 def render_state_visual(county_needs_df: pd.DataFrame) -> None:
     top_counties = county_needs_df.head(3).copy() if not county_needs_df.empty else pd.DataFrame(columns=["county", "need_index"])
-    county_rows = []
-    if not top_counties.empty:
+    left_col, right_col = st.columns([0.75, 1.65], gap="medium")
+
+    with left_col:
+        if STATE_ICON_PATH.exists():
+            st.markdown('<div class="state-image-wrap">', unsafe_allow_html=True)
+            st.image(str(STATE_ICON_PATH), caption="Delaware", width=100)
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.info("Delaware state icon not found.")
+
+    with right_col:
+        if top_counties.empty:
+            st.caption("No county data available.")
+            return
+
         max_need = max(float(top_counties["need_index"].max()), 1.0)
         for _, row in top_counties.iterrows():
             need_value = int(row["need_index"])
             if need_value >= max_need * 0.75:
-                tag = "High Need"
-                tag_class = "county-need-high"
+                label = "High Need"
             elif need_value >= max_need * 0.45:
-                tag = "Moderate"
-                tag_class = "county-need-medium"
+                label = "Moderate"
             else:
-                tag = "Lower Need"
-                tag_class = "county-need-low"
-            county_rows.append(
-                f"""
-                <div class="county-state-row">
-                    <div>
-                        <div class="county-state-row-name">{row['county']}</div>
-                        <div class="county-state-row-value">{need_value:,} need index</div>
-                    </div>
-                    <div class="county-need-pill {tag_class}">{tag}</div>
-                </div>
-                """
-            )
+                label = "Lower Need"
 
-    county_rows_html = "".join(county_rows) if county_rows else "<div class='county-state-empty'>No county data available.</div>"
-
-    st.markdown(
-        f"""
-        <div class="county-state-visual">
-            <div class="county-state-map">
-                <svg viewBox="0 0 120 220" role="img" aria-label="Delaware state visual">
-                    <defs>
-                        <linearGradient id="delawareFill" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#17a2b8" />
-                            <stop offset="100%" stop-color="#3f7bd9" />
-                        </linearGradient>
-                    </defs>
-                    <path d="M34 8 L88 8 L96 170 L88 180 L84 214 L42 214 L38 180 L30 176 L24 126 L28 70 Z" fill="url(#delawareFill)" opacity="0.96"/>
-                    <path d="M34 8 L88 8 L96 170 L88 180 L84 214 L42 214 L38 180 L30 176 L24 126 L28 70 Z" fill="none" stroke="#ffffff" stroke-width="3"/>
-                    <path d="M28 120 L96 120" stroke="#ffffff" stroke-width="2.5" opacity="0.9"/>
-                    <path d="M40 60 L82 60" stroke="#ffffff" stroke-width="2.5" opacity="0.9"/>
-                    <circle cx="56" cy="52" r="3.5" fill="#ffffff" opacity="0.95"/>
-                    <circle cx="72" cy="96" r="3.5" fill="#ffffff" opacity="0.95"/>
-                    <circle cx="62" cy="148" r="3.5" fill="#ffffff" opacity="0.95"/>
-                </svg>
-                <div class="county-state-label">Delaware</div>
-            </div>
-            <div class="county-state-list">
-                {county_rows_html}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            row_left, row_right = st.columns([3, 1], gap="small")
+            with row_left:
+                st.markdown(
+                    f"**{row['county']}**  \n"
+                    f"{need_value:,} need index",
+                )
+            with row_right:
+                st.markdown(
+                    f"<div class='county-need-pill county-need-{'high' if label == 'High Need' else 'medium' if label == 'Moderate' else 'low'}'>{label}</div>",
+                    unsafe_allow_html=True,
+                )
 
 
 def inject_overview_styles() -> None:
@@ -510,8 +500,16 @@ def inject_overview_styles() -> None:
             line-height: 1.1;
         }
 
+        .overview-launch-logo {
+            height: 70px;
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
         .overview-subtitle {
-            color: #5d6f86;
+            color: #324862;
             font-size: 0.95rem;
             margin-top: 4px;
         }
@@ -535,7 +533,7 @@ def inject_overview_styles() -> None:
         }
 
         .overview-kpi-label {
-            color: #35557f;
+            color: #1f3f66;
             font-size: 0.9rem;
             font-weight: 700;
             margin-bottom: 10px;
@@ -549,7 +547,7 @@ def inject_overview_styles() -> None:
         }
 
         .overview-kpi-footnote {
-            color: #5f728e;
+            color: #42556f;
             font-size: 0.78rem;
             margin-top: 8px;
         }
@@ -562,16 +560,57 @@ def inject_overview_styles() -> None:
         }
 
         .overview-panel-caption {
-            color: #647892;
+            color: #364a66;
             font-size: 0.82rem;
             margin-top: 8px;
         }
 
         .overview-link {
-            color: #2b6cb0;
+            color: #1d4f91;
             font-weight: 700;
             font-size: 0.88rem;
             margin-top: 6px;
+        }
+
+        .overview-helper-text {
+            color: #38506f;
+            font-size: 0.88rem;
+            font-weight: 600;
+            margin-top: 0.1rem;
+        }
+
+        .main .stTextInput label,
+        .main .stMultiSelect label,
+        .main .stSelectbox label,
+        .main .stRadio label {
+            color: #1d3773 !important;
+            font-weight: 700 !important;
+            opacity: 1 !important;
+        }
+
+        .main div[data-baseweb="input"] > div,
+        .main div[data-baseweb="select"] > div {
+            background: #ffffff !important;
+            border: 1px solid #cfe0f5 !important;
+            color: #10223f !important;
+        }
+
+        .main div[data-baseweb="input"] input,
+        .main div[data-baseweb="select"] span {
+            color: #10223f !important;
+            opacity: 1 !important;
+        }
+
+        .main .stButton > button {
+            background: #eef4ff !important;
+            color: #163b79 !important;
+            border: 1px solid #c9d8ef !important;
+            font-weight: 700 !important;
+        }
+
+        .main .stButton > button:hover {
+            background: #e6efff !important;
+            color: #112f63 !important;
         }
 
         .pie-chart-shell {
@@ -657,14 +696,14 @@ def inject_overview_styles() -> None:
         }
 
         .pie-legend-value {
-            color: #35557f;
+            color: #1e3553;
             font-size: 0.88rem;
             font-weight: 800;
             white-space: nowrap;
         }
 
         .pie-legend-value span {
-            color: #5f728e;
+            color: #435a77;
             font-weight: 700;
         }
 
@@ -690,8 +729,15 @@ def inject_overview_styles() -> None:
             filter: drop-shadow(0 8px 18px rgba(29, 78, 216, 0.22));
         }
 
+        .county-state-icon {
+            width: 84px;
+            height: auto;
+            display: block;
+            filter: drop-shadow(0 8px 18px rgba(29, 78, 216, 0.22));
+        }
+
         .county-state-label {
-            color: #0c1f44;
+            color: #14284a;
             font-size: 0.92rem;
             font-weight: 800;
             letter-spacing: 0.01em;
@@ -724,7 +770,7 @@ def inject_overview_styles() -> None:
         }
 
         .county-state-row-value {
-            color: #5f728e;
+            color: #42556f;
             font-size: 0.8rem;
             margin-top: 2px;
         }
@@ -757,9 +803,56 @@ def inject_overview_styles() -> None:
         }
 
         .county-state-empty {
-            color: #5f728e;
+            color: #42556f;
             font-size: 0.9rem;
             padding: 10px 0;
+        }
+
+        .state-image-wrap img {
+            mix-blend-mode: multiply;
+            background: transparent !important;
+            border-radius: 6px;
+        }
+
+        .insight-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .insight-card {
+            border-radius: 16px;
+            padding: 14px;
+            background: linear-gradient(180deg, #effaf3 0%, #e5f5ea 100%);
+            border: 1px solid #c7e5d0;
+            box-shadow: 0 8px 18px rgba(16, 34, 63, 0.04);
+            min-height: 132px;
+        }
+
+        .insight-card-index {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            margin-bottom: 12px;
+            background: #1d4f91;
+            color: #ffffff;
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .insight-card-text {
+            color: #153321;
+            font-size: 0.96rem;
+            font-weight: 600;
+            line-height: 1.55;
+        }
+
+        .insight-card-empty {
+            color: #42556f;
+            font-size: 0.9rem;
         }
 
         .stDataFrame,
@@ -785,11 +878,54 @@ def inject_overview_styles() -> None:
             .pie-chart-legend {
                 width: 100%;
             }
+
+            .insight-grid {
+                grid-template-columns: 1fr;
+            }
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_insight_cards(insights: list[str]) -> None:
+    if not insights:
+        st.caption("Not enough data yet to generate insight callouts.")
+        return
+
+    rows = st.columns(2, gap="medium")
+    for index, insight in enumerate(insights[:4]):
+        with rows[index % 2]:
+            st.markdown(
+                f"""
+                <div style="border-radius:16px;padding:14px;background:linear-gradient(180deg,#effaf3 0%,#e5f5ea 100%);border:1px solid #c7e5d0;box-shadow:0 8px 18px rgba(16, 34, 63, 0.04);min-height:132px;">
+                    <div style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;margin-bottom:12px;background:#1d4f91;color:#ffffff;font-size:0.78rem;font-weight:800;">{index + 1}</div>
+                    <div style="color:#153321;font-size:0.96rem;font-weight:600;line-height:1.55;">{insight}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def render_top_navigation(current_page: str) -> None:
+    buttons = [
+        ("Overview", "overview.py", "overview"),
+        ("Youth Profiles", "profile_lookup.py", "profile_lookup"),
+        ("AI Assistant", "ai_assistant.py", "ai_assistant"),
+        ("Caseworker Dashboard", "caseworker_dashboard.py", "caseworker_dashboard"),
+    ]
+    cols = st.columns(4)
+    for idx, (label, target, page_key) in enumerate(buttons):
+        with cols[idx]:
+            key = f"topnav_std_{page_key}"
+            if page_key == current_page:
+                st.button(label, width="stretch", disabled=True, key=key)
+            elif st.button(label, width="stretch", key=key):
+                try:
+                    st.switch_page(target)
+                except Exception:
+                    st.info(f"Open {target} from Streamlit multipage navigation.")
 
 
 def render() -> None:
@@ -808,32 +944,41 @@ def render() -> None:
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Navigation")
     if st.sidebar.button("Overview", width="stretch"):
-        st.switch_page("dashboard/overview.py")
+        st.rerun()
     if st.sidebar.button("Youth Profiles", width="stretch"):
         try:
-            st.switch_page("dashboard/profile_lookup.py")
+            st.switch_page("profile_lookup.py")
         except Exception:
-            st.info("Open dashboard/profile_lookup.py from Streamlit multipage navigation.")
+            st.info("Open profile_lookup.py from Streamlit multipage navigation.")
     if st.sidebar.button("AI Assistant", width="stretch"):
         try:
-            st.switch_page("dashboard/ai_assistant.py")
+            st.switch_page("ai_assistant.py")
         except Exception:
-            st.info("Open dashboard/ai_assistant.py from Streamlit multipage navigation.")
+            st.info("Open ai_assistant.py from Streamlit multipage navigation.")
     if st.sidebar.button("Caseworker Dashboard", width="stretch"):
         try:
-            st.switch_page("dashboard/caseworker_dashboard.py")
+            st.switch_page("caseworker_dashboard.py")
         except Exception:
-            st.info("Open dashboard/caseworker_dashboard.py from Streamlit multipage navigation.")
+            st.info("Open caseworker_dashboard.py from Streamlit multipage navigation.")
     st.sidebar.markdown("---")
     st.sidebar.markdown("#### Quick Insight")
     st.sidebar.caption("Use the filters in the main view to narrow the dashboard by county or risk level.")
 
+    render_top_navigation("overview")
+
+    launch_logo_uri = load_image_data_uri(LAUNCH_LOGO_PATH)
+    header_logo_html = (
+        f'<img class="overview-launch-logo" src="{launch_logo_uri}" alt="Future Path" />'
+        if launch_logo_uri
+        else '<div class="overview-title">Future Path</div>'
+    )
+
     st.markdown(
-        """
+        f"""
         <div class="overview-shell">
             <div class="overview-header">
                 <div>
-                    <div class="overview-title">Future Path</div>
+                    {header_logo_html}
                     <div class="overview-subtitle">Youth Transition Support Dashboard</div>
                 </div>
                 <div class="overview-badge">Overview</div>
@@ -931,7 +1076,10 @@ def render() -> None:
 
     render_metric_cards(metrics)
     st.markdown('<div style="height: 0.35rem;"></div>', unsafe_allow_html=True)
-    st.caption(f"Showing {len(filtered_youth_df):,} of {len(youth_df):,} youth records based on current filters")
+    st.markdown(
+        f'<div class="overview-helper-text">Showing {len(filtered_youth_df):,} of {len(youth_df):,} youth records based on current filters</div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown('<div class="overview-top-layout" style="display:grid;grid-template-columns:1.25fr 1fr;gap:16px;">', unsafe_allow_html=True)
     left_col, right_col = st.columns([1.25, 1])
@@ -1038,13 +1186,7 @@ def render() -> None:
         st.markdown('<div class="overview-side-panel">', unsafe_allow_html=True)
         st.markdown('<div class="overview-panel-title">Insight Callouts</div>', unsafe_allow_html=True)
         insights = build_insight_callouts(metrics, county_needs_df, top_resources_df, risk_breakdown)
-        if not insights:
-            st.info("Not enough data yet to generate insight callouts.")
-        else:
-            insight_cols = st.columns(2)
-            for index, insight in enumerate(insights[:4]):
-                with insight_cols[index % 2]:
-                    st.success(insight)
+        render_insight_cards(insights)
         st.markdown('</div>', unsafe_allow_html=True)
 
 

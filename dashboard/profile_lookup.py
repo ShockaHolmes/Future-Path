@@ -204,21 +204,102 @@ def filter_profiles(frame: pd.DataFrame, mode: str, query: str) -> pd.DataFrame:
     return frame[frame["search_name"].str.contains(cleaned, na=False)]
 
 
+def inject_profile_lookup_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            color: #10223f;
+        }
+
+        h1, h2, h3, h4 {
+            color: #10223f;
+        }
+
+        .stCaption,
+        .stMarkdown p,
+        .stMarkdown li {
+            color: #314862 !important;
+        }
+
+        .stMetric [data-testid="stMetricLabel"],
+        .stMetric label,
+        .stSelectbox label,
+        .stRadio label,
+        .stTextInput label,
+        .stMultiSelect label {
+            color: #244268 !important;
+            font-weight: 700 !important;
+        }
+
+        .stMetric [data-testid="stMetricValue"] {
+            color: #10223f !important;
+        }
+
+        .stButton > button {
+            color: #143d7a !important;
+            font-weight: 700 !important;
+        }
+
+        .stButton > button[kind="primary"] {
+            color: #ffffff !important;
+        }
+
+        [data-testid="stAlert"] {
+            border-radius: 14px;
+        }
+
+        [data-testid="stAlert"] *,
+        [data-testid="stAlert"] p,
+        [data-testid="stAlert"] div {
+            color: inherit !important;
+            opacity: 1 !important;
+        }
+
+        .stDataFrame [role="grid"],
+        .stDataFrame [role="columnheader"],
+        .stDataFrame [role="gridcell"] {
+            color: #10223f !important;
+        }
+
+        .stDataFrame [role="columnheader"] {
+            background: #edf3ff !important;
+            font-weight: 700 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_top_navigation(current_page: str) -> None:
+    buttons = [
+        ("Overview", "overview.py", "overview"),
+        ("Youth Profiles", "profile_lookup.py", "profile_lookup"),
+        ("AI Assistant", "ai_assistant.py", "ai_assistant"),
+        ("Caseworker Dashboard", "caseworker_dashboard.py", "caseworker_dashboard"),
+    ]
+    cols = st.columns(4)
+    for idx, (label, target, page_key) in enumerate(buttons):
+        with cols[idx]:
+            key = f"topnav_std_{page_key}"
+            if page_key == current_page:
+                st.button(label, width="stretch", disabled=True, key=key)
+            elif st.button(label, width="stretch", key=key):
+                try:
+                    st.switch_page(target)
+                except Exception:
+                    st.info(f"Open {target} from Streamlit multipage navigation.")
+
+
 def render() -> None:
     st.set_page_config(page_title="Future Path Profile Lookup", page_icon="FP", layout="wide")
+    inject_profile_lookup_styles()
 
     st.title("Youth Profile Lookup")
     st.caption("Search by youth ID or name to review profile details, risk score, recommendations, and intake context")
 
-    link_col1, link_col2 = st.columns([1, 3])
-    with link_col1:
-        if st.button("🤖 Future Path AI Assistant", width="stretch"):
-            try:
-                st.switch_page("dashboard/ai_assistant.py")
-            except Exception:
-                st.info("Open dashboard/ai_assistant.py from Streamlit multipage navigation.")
-    with link_col2:
-        st.write("Need a new intake? Launch the AI Assistant to start assessment.")
+    render_top_navigation("profile_lookup")
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
 

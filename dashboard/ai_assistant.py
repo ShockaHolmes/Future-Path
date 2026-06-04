@@ -73,6 +73,26 @@ def render_notice() -> None:
     )
 
 
+def render_top_navigation(current_page: str) -> None:
+    buttons = [
+        ("Overview", "overview.py", "overview"),
+        ("Youth Profiles", "profile_lookup.py", "profile_lookup"),
+        ("AI Assistant", "ai_assistant.py", "ai_assistant"),
+        ("Caseworker Dashboard", "caseworker_dashboard.py", "caseworker_dashboard"),
+    ]
+    cols = st.columns(4)
+    for idx, (label, target, page_key) in enumerate(buttons):
+        with cols[idx]:
+            key = f"topnav_std_{page_key}"
+            if page_key == current_page:
+                st.button(label, width="stretch", disabled=True, key=key)
+            elif st.button(label, width="stretch", key=key):
+                try:
+                    st.switch_page(target)
+                except Exception:
+                    st.info(f"Open {target} from Streamlit multipage navigation.")
+
+
 def inject_ai_assistant_styles() -> None:
     st.markdown(
         """
@@ -210,7 +230,7 @@ def inject_ai_assistant_styles() -> None:
         }
 
         .ai-summary-label {
-            color: #2f4f97;
+            color: #21427f;
             font-size: 0.9rem;
             font-weight: 700;
             margin-bottom: 6px;
@@ -249,7 +269,7 @@ def inject_ai_assistant_styles() -> None:
         }
 
         .ai-resource-meta {
-            color: #4e66a5;
+            color: #27437f;
             font-size: 0.88rem;
         }
 
@@ -270,7 +290,7 @@ def inject_ai_assistant_styles() -> None:
         }
 
         .assist-resource-row .assist-resource-desc {
-            color: #5e709f;
+            color: #425c87;
             font-size: 0.84rem;
             line-height: 1.35;
             margin-top: 2px;
@@ -286,7 +306,7 @@ def inject_ai_assistant_styles() -> None:
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            color: #7791c6;
+            color: #35558f;
             font-weight: 600;
         }
 
@@ -396,7 +416,18 @@ def inject_ai_assistant_styles() -> None:
         .stMarkdown p,
         .stMarkdown li,
         .stCaption {
-            color: #1f3b84 !important;
+            color: #18356f !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stAlert"] {
+            border-radius: 14px;
+        }
+
+        [data-testid="stAlert"] *,
+        [data-testid="stAlert"] p,
+        [data-testid="stAlert"] div {
+            color: inherit !important;
             opacity: 1 !important;
         }
 
@@ -409,7 +440,7 @@ def inject_ai_assistant_styles() -> None:
             border: 1px solid #d2dfff !important;
             border-radius: 12px !important;
             background: #f4f8ff !important;
-            color: #153885 !important;
+            color: #173b80 !important;
             font-weight: 700 !important;
             min-height: 44px;
         }
@@ -836,6 +867,9 @@ def render() -> None:
         unsafe_allow_html=True,
     )
     st.caption("Guided intake assessment with recommendation support")
+
+    render_top_navigation("ai_assistant")
+
     render_notice()
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
