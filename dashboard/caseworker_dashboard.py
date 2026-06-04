@@ -824,7 +824,7 @@ def inject_caseworker_dashboard_styles() -> None:
 
         .cw-brand-right {
             text-align: right;
-            color: #1c367f;
+            color: #16336f;
             font-size: 0.92rem;
             line-height: 1.3;
         }
@@ -838,7 +838,7 @@ def inject_caseworker_dashboard_styles() -> None:
         }
 
         .cw-metric-label {
-            color: #31519f;
+            color: #1f3f7e;
             font-weight: 700;
             font-size: 0.86rem;
             line-height: 1.3;
@@ -854,7 +854,7 @@ def inject_caseworker_dashboard_styles() -> None:
 
         .cw-metric-link {
             margin-top: 8px;
-            color: #2a56c1;
+            color: #1d4f91;
             font-size: 0.84rem;
             font-weight: 700;
         }
@@ -868,7 +868,7 @@ def inject_caseworker_dashboard_styles() -> None:
         }
 
         .cw-alert-title {
-            color: #c02132;
+            color: #a91f2f;
             font-family: 'Manrope', sans-serif;
             font-weight: 800;
             margin-bottom: 8px;
@@ -882,7 +882,7 @@ def inject_caseworker_dashboard_styles() -> None:
         }
 
         .cw-table-subtle {
-            color: #2d4f9a;
+            color: #244780;
             font-size: 0.86rem;
             font-weight: 700;
             margin-top: 6px;
@@ -905,13 +905,13 @@ def inject_caseworker_dashboard_styles() -> None:
         }
 
         .cw-activity-title {
-            color: #1a347f;
+            color: #152f6a;
             font-size: 0.93rem;
             font-weight: 600;
         }
 
         .cw-activity-meta {
-            color: #5f71aa;
+            color: #425b8f;
             font-size: 0.81rem;
         }
 
@@ -964,7 +964,7 @@ def inject_caseworker_dashboard_styles() -> None:
         .stCheckbox label,
         .stNumberInput label,
         .stRadio label {
-            color: #233e86 !important;
+            color: #1d3773 !important;
             font-weight: 700 !important;
         }
 
@@ -985,7 +985,7 @@ def inject_caseworker_dashboard_styles() -> None:
 
         .stButton > button {
             background: #f3f7ff !important;
-            color: #14388f !important;
+            color: #173b80 !important;
             border: 1px solid #cbd8f8 !important;
             font-weight: 700 !important;
         }
@@ -1010,7 +1010,18 @@ def inject_caseworker_dashboard_styles() -> None:
         .stMarkdown p,
         .stMarkdown li,
         .stText {
-            color: #1c367f !important;
+            color: #18356f !important;
+        }
+
+        [data-testid="stAlert"] {
+            border-radius: 14px;
+        }
+
+        [data-testid="stAlert"] *,
+        [data-testid="stAlert"] p,
+        [data-testid="stAlert"] div {
+            color: inherit !important;
+            opacity: 1 !important;
         }
 
         [data-testid="stAlert"] *,
@@ -1132,6 +1143,26 @@ def estimate_transition_date(age: object) -> str:
     return estimated.strftime("%b %-d, %Y")
 
 
+def render_top_navigation(current_page: str) -> None:
+    buttons = [
+        ("Overview", "overview.py", "overview"),
+        ("Youth Profiles", "profile_lookup.py", "profile_lookup"),
+        ("AI Assistant", "ai_assistant.py", "ai_assistant"),
+        ("Caseworker Dashboard", "caseworker_dashboard.py", "caseworker_dashboard"),
+    ]
+    cols = st.columns(4)
+    for idx, (label, target, page_key) in enumerate(buttons):
+        with cols[idx]:
+            key = f"topnav_std_{page_key}"
+            if page_key == current_page:
+                st.button(label, width="stretch", disabled=True, key=key)
+            elif st.button(label, width="stretch", key=key):
+                try:
+                    st.switch_page(target)
+                except Exception:
+                    st.info(f"Open {target} from Streamlit multipage navigation.")
+
+
 def render() -> None:
     st.set_page_config(page_title="Future Path Caseworker Dashboard", page_icon="FP", layout="wide")
     inject_caseworker_dashboard_styles()
@@ -1144,6 +1175,8 @@ def render() -> None:
         unsafe_allow_html=True,
     )
     st.caption("Monitor youth caseload, respond to high-risk alerts, and manage daily follow-ups.")
+
+    render_top_navigation("caseworker_dashboard")
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
     if not db_path.exists():
