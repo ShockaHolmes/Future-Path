@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 import sqlite3
+import sys
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_PATH = PROJECT_ROOT / "src"
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
+
+from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
 
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
@@ -213,18 +222,114 @@ def inject_profile_lookup_styles() -> None:
     st.markdown(
         """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+
         .stApp {
-            color: #10223f;
+            background:
+                radial-gradient(circle at 8% 4%, rgba(15, 91, 215, 0.10) 0%, rgba(15, 91, 215, 0.0) 35%),
+                radial-gradient(circle at 92% 9%, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.0) 30%),
+                linear-gradient(180deg, #f9fbff 0%, #f4f8ff 100%);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #0b1b51;
+        }
+
+        .main .block-container {
+            padding-top: 1.4rem;
+            max-width: 1220px;
+        }
+
+        .pl-step-banner {
+            border: 1px solid #cbdcff;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #f6faff 0%, #f3f8ff 100%);
+            padding: 10px 16px;
+            margin-bottom: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pl-step-title {
+            font-family: 'Manrope', sans-serif;
+            color: #122f82;
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
         }
 
         h1, h2, h3, h4 {
-            color: #10223f;
+            font-family: 'Manrope', sans-serif !important;
+            color: #102a78;
+        }
+
+        .pl-shell {
+            border: 1px solid #d7e4ff;
+            border-radius: 22px;
+            background: linear-gradient(180deg, #ffffff 0%, #fdfefe 100%);
+            box-shadow: 0 14px 38px rgba(17, 61, 156, 0.07);
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .pl-brandbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2ebff;
+        }
+
+        .pl-brand-left {
+            font-family: 'Manrope', sans-serif;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+            color: #12389f;
+            font-size: 1.45rem;
+        }
+
+        .pl-brand-right {
+            text-align: right;
+            color: #16336f;
+            font-size: 0.92rem;
+            line-height: 1.3;
+        }
+
+        .pl-section-card {
+            border: 1px solid #dee8ff;
+            border-radius: 16px;
+            background: #ffffff;
+            padding: 12px;
+            margin-bottom: 0.9rem;
+        }
+
+        .pl-metric-card {
+            border: 1px solid #e1eaff;
+            border-radius: 14px;
+            background: #fbfdff;
+            padding: 14px 14px 12px 14px;
+            min-height: 110px;
+        }
+
+        .pl-metric-label {
+            color: #1f3f7e;
+            font-weight: 700;
+            font-size: 0.86rem;
+            line-height: 1.3;
+        }
+
+        .pl-metric-value {
+            color: #0f1f62;
+            font-family: 'Manrope', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-top: 7px;
         }
 
         .stCaption,
         .stMarkdown p,
-        .stMarkdown li {
-            color: #314862 !important;
+        .stMarkdown li,
+        .stText {
+            color: #18356f !important;
         }
 
         .stMetric [data-testid="stMetricLabel"],
@@ -233,20 +338,49 @@ def inject_profile_lookup_styles() -> None:
         .stRadio label,
         .stTextInput label,
         .stMultiSelect label {
-            color: #244268 !important;
+            color: #1d3773 !important;
             font-weight: 700 !important;
         }
 
         .stMetric [data-testid="stMetricValue"] {
-            color: #10223f !important;
+            color: #143681 !important;
+        }
+
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="textarea"] > div {
+            background: #ffffff !important;
+            border: 1px solid #d4e1ff !important;
+            color: #122d79 !important;
+        }
+
+        div[data-baseweb="select"] *,
+        div[data-baseweb="input"] input,
+        div[data-baseweb="textarea"] textarea {
+            color: #122d79 !important;
+            opacity: 1 !important;
         }
 
         .stButton > button {
-            color: #143d7a !important;
+            background: #f3f7ff !important;
+            color: #173b80 !important;
+            border: 1px solid #cbd8f8 !important;
             font-weight: 700 !important;
         }
 
+        .stButton > button:hover {
+            background: #e7efff !important;
+            color: #102f84 !important;
+        }
+
         .stButton > button[kind="primary"] {
+            background: #ff4a53 !important;
+            color: #ffffff !important;
+            border-color: #ff4a53 !important;
+        }
+
+        .stButton > button[kind="primary"]:hover {
+            background: #ef3b45 !important;
             color: #ffffff !important;
         }
 
@@ -261,6 +395,28 @@ def inject_profile_lookup_styles() -> None:
             opacity: 1 !important;
         }
 
+        [data-testid="stDataFrame"] {
+            --gdg-bg-cell: #ffffff;
+            --gdg-bg-cell-medium: #f7faff;
+            --gdg-bg-header: #edf3ff;
+            --gdg-bg-header-has-focus: #e6eeff;
+            --gdg-border-color: #dce7ff;
+            --gdg-color: #102a78;
+            --gdg-text-dark: #102a78;
+            --gdg-text-medium: #274594;
+            --gdg-text-light: #5d75b1;
+            --gdg-accent-color: #2f5dc8;
+        }
+
+        [data-testid="stDataFrame"] canvas {
+            background: #ffffff !important;
+        }
+
+        .stDataFrame {
+            border: 1px solid #e5edff;
+            border-radius: 14px;
+        }
+
         .stDataFrame [role="grid"],
         .stDataFrame [role="columnheader"],
         .stDataFrame [role="gridcell"] {
@@ -268,8 +424,20 @@ def inject_profile_lookup_styles() -> None:
         }
 
         .stDataFrame [role="columnheader"] {
-            background: #edf3ff !important;
+            background-color: #edf3ff !important;
             font-weight: 700 !important;
+        }
+
+        @media (max-width: 920px) {
+            .pl-brandbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+
+            .pl-brand-right {
+                text-align: left;
+            }
         }
         </style>
         """,
@@ -279,29 +447,55 @@ def inject_profile_lookup_styles() -> None:
 
 def render_top_navigation(current_page: str) -> None:
     buttons = [
-        ("Overview", OVERVIEW_URL, "overview"),
-        ("Youth Dashboard", YOUTH_DASHBOARD_URL, "youth_dashboard"),
-        ("Youth Profiles", PROFILE_LOOKUP_URL, "profile_lookup"),
-        ("AI Assistant", AI_ASSISTANT_URL, "ai_assistant"),
-        ("Caseworker Dashboard", CASEWORKER_URL, "caseworker_dashboard"),
+        ("Overview", "overview"),
+        ("Youth Dashboard", "youth_dashboard"),
+        ("Youth Profiles", "profile_lookup"),
+        ("AI Assistant", "ai_assistant"),
+        ("Caseworker Dashboard", "caseworker_dashboard"),
     ]
     cols = st.columns(5)
-    for idx, (label, url, page_key) in enumerate(buttons):
+    for idx, (label, page_key) in enumerate(buttons):
         with cols[idx]:
             if page_key == current_page:
-                st.link_button(label, url=url, use_container_width=True, disabled=True)
+                st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
-                st.link_button(label, url=url, use_container_width=True)
+                if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
+                    next_url = switch_dashboard(page_key, current_key=current_page)
+                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+                    st.stop()
 
 
 def render() -> None:
     st.set_page_config(page_title="Future Path Profile Lookup", page_icon="FP", layout="wide")
+    ensure_single_dashboard("profile_lookup")
     inject_profile_lookup_styles()
 
-    st.title("Youth Profile Lookup")
-    st.caption("Search by youth ID or name to review profile details, risk score, recommendations, and intake context")
+    st.markdown(
+        """
+        <div class="pl-step-banner">
+            <span class="pl-step-title">Youth Profiles</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.caption("Search by youth ID or name to review profile details, risk score, recommendations, and intake context.")
 
     render_top_navigation("profile_lookup")
+
+    st.markdown(
+        """
+        <div class="pl-shell">
+            <div class="pl-brandbar">
+                <div class="pl-brand-left">Future Path</div>
+                <div class="pl-brand-right">
+                    <div><strong>Profile Lookup Workspace</strong></div>
+                    <div>Review youth details and AI context</div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
 
@@ -343,9 +537,18 @@ def render() -> None:
     selected_row = filtered_profiles[filtered_profiles["youth_id"] == selected_youth_id].iloc[0]
 
     st.subheader("Profile Information")
+    st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
     info_col1, info_col2, info_col3 = st.columns(3)
     with info_col1:
-        st.metric("Youth ID", str(selected_row["youth_id"]))
+        st.markdown(
+            f"""
+            <div class="pl-metric-card">
+                <div class="pl-metric-label">Youth ID</div>
+                <div class="pl-metric-value">{selected_row['youth_id']}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.write(f"Name: {selected_row['full_name'] if selected_row['full_name'] else 'Not available'}")
         st.write(f"Age: {int(selected_row['age'])}")
     with info_col2:
@@ -356,6 +559,7 @@ def render() -> None:
         st.write(f"Housing: {selected_row['housing']}")
         st.write(f"Mentor Status: {selected_row['mentor_status']}")
         st.write(f"Placement Count: {int(selected_row['placement_count'])}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     with sqlite3.connect(db_path) as connection:
         connection.row_factory = sqlite3.Row
@@ -365,6 +569,7 @@ def render() -> None:
 
     st.divider()
     st.subheader("Latest Risk Score")
+    st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
     if risk_df.empty:
         st.info("No risk score found for this profile.")
     else:
@@ -375,9 +580,11 @@ def render() -> None:
         r3.metric("Housing Risk", f"{float(risk['housing_risk_score'] or 0.0) * 100:.1f}%")
         r4.metric("Employment Risk", f"{float(risk['employment_risk_score'] or 0.0) * 100:.1f}%")
         st.caption(f"Calculated at: {risk['calculated_at']} | Model: {risk['model_name']} {risk['model_version'] or ''}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader("Recommended Resources")
+    st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
     if rec_df.empty:
         st.info("No recommendations found for this profile.")
     else:
@@ -398,9 +605,11 @@ def render() -> None:
             hide_index=True,
             width="stretch",
         )
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader("Latest AI Assistant Intake Summary")
+    st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
     if intake_session_df.empty:
         st.info("No AI intake session found for this profile.")
     else:
@@ -418,6 +627,7 @@ def render() -> None:
                 hide_index=True,
                 width="stretch",
             )
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":

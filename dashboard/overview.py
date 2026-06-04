@@ -2,11 +2,20 @@ from __future__ import annotations
 
 import base64
 import sqlite3
+import sys
 from pathlib import Path
 from textwrap import dedent
 
 import pandas as pd
 import streamlit as st
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_PATH = PROJECT_ROOT / "src"
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
+
+from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
 
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
@@ -915,24 +924,30 @@ def render_insight_cards(insights: list[str]) -> None:
 
 def render_top_navigation(current_page: str) -> None:
     buttons = [
-        ("Overview", OVERVIEW_URL, "overview"),
-        ("Youth Dashboard", YOUTH_DASHBOARD_URL, "youth_dashboard"),
-        ("Youth Profiles", PROFILE_LOOKUP_URL, "profile_lookup"),
-        ("AI Assistant", AI_ASSISTANT_URL, "ai_assistant"),
-        ("Caseworker Dashboard", CASEWORKER_URL, "caseworker_dashboard"),
+        ("Overview", "overview"),
+        ("Youth Dashboard", "youth_dashboard"),
+        ("Youth Profiles", "profile_lookup"),
+        ("AI Assistant", "ai_assistant"),
+        ("Caseworker Dashboard", "caseworker_dashboard"),
     ]
     cols = st.columns(5)
-    for idx, (label, url, page_key) in enumerate(buttons):
+    for idx, (label, page_key) in enumerate(buttons):
         with cols[idx]:
-            key = f"topnav_std_{page_key}"
             if page_key == current_page:
-                st.link_button(label, url=url, use_container_width=True, disabled=True)
+                st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
-                st.link_button(label, url=url, use_container_width=True)
+                if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
+                    next_url = switch_dashboard(page_key, current_key=current_page)
+                    st.markdown(
+                        f'<meta http-equiv="refresh" content="0; url={next_url}">',
+                        unsafe_allow_html=True,
+                    )
+                    st.stop()
 
 
 def render() -> None:
     st.set_page_config(page_title="Future Path Dashboard", page_icon="FP", layout="wide")
+    ensure_single_dashboard("overview")
     inject_overview_styles()
 
     st.sidebar.markdown(
@@ -946,11 +961,29 @@ def render() -> None:
     )
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Navigation")
-    st.sidebar.link_button("Overview", OVERVIEW_URL, use_container_width=True, disabled=True)
-    st.sidebar.link_button("Youth Dashboard", YOUTH_DASHBOARD_URL, use_container_width=True)
-    st.sidebar.link_button("Youth Profiles", PROFILE_LOOKUP_URL, use_container_width=True)
-    st.sidebar.link_button("AI Assistant", AI_ASSISTANT_URL, use_container_width=True)
-    st.sidebar.link_button("Caseworker Dashboard", CASEWORKER_URL, use_container_width=True)
+    st.sidebar.button("Overview", use_container_width=True, disabled=True, key="sidebar_overview_disabled")
+    if st.sidebar.button("Youth Dashboard", use_container_width=True, key="sidebar_switch_youth"):
+        next_url = switch_dashboard("youth_dashboard", current_key="overview")
+        st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+        st.stop()
+    if st.sidebar.button("Youth Profiles", use_container_width=True, key="sidebar_switch_profile"):
+        next_url = switch_dashboard("profile_lookup", current_key="overview")
+        st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+        st.stop()
+    if st.sidebar.button("AI Assistant", use_container_width=True, key="sidebar_switch_ai"):
+        next_url = switch_dashboard("ai_assistant", current_key="overview")
+        st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+        st.stop()
+    if st.sidebar.button("Caseworker Dashboard", use_container_width=True, key="sidebar_switch_caseworker"):
+        next_url = switch_dashboard("caseworker_dashboard", current_key="overview")
+        st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+        st.stop()
+
+    if st.sidebar.button("Shut Down All Dashboards", use_container_width=True, key="sidebar_shutdown_all"):
+        stop_all_dashboards()
+        st.sidebar.success("All dashboard servers were stopped.")
+        st.stop()
+
     st.sidebar.markdown("---")
     st.sidebar.markdown("#### Quick Insight")
     st.sidebar.caption("Use the filters in the main view to narrow the dashboard by county or risk level.")
@@ -981,7 +1014,10 @@ def render() -> None:
 
     launch_col1, launch_col2 = st.columns([1.1, 2.4])
     with launch_col1:
-        st.link_button("Open Youth Dashboard", YOUTH_DASHBOARD_URL, type="primary", use_container_width=True)
+        if st.button("Open Youth Dashboard", type="primary", use_container_width=True, key="overview_launch_youth"):
+            next_url = switch_dashboard("youth_dashboard", current_key="overview")
+            st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+            st.stop()
     with launch_col2:
         st.caption("For youth users: complete intake, view assigned resources, and contact your caseworker.")
 

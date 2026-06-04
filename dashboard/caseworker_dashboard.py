@@ -15,6 +15,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from assign_resources_from_intake import ensure_assigned_resources_table_integrity
+from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
 from future_path_ai_intake import ensure_intake_tables
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
@@ -689,6 +690,52 @@ def load_follow_ups(connection: sqlite3.Connection, youth_id: str) -> pd.DataFra
     )
 
 
+def load_youth_profile_snapshot(connection: sqlite3.Connection, youth_id: str) -> pd.DataFrame:
+    if table_exists(connection, "caseworker_youth"):
+        query = """
+        SELECT
+            yp.youth_id,
+            yp.age,
+            yp.county,
+            yp.education,
+            yp.employment,
+            yp.housing,
+            yp.mentor_status,
+            yp.placement_count,
+            yp.prior_homelessness,
+            COALESCE(cw.first_name, '') AS first_name,
+            COALESCE(cw.last_name, '') AS last_name
+        FROM youth_profiles yp
+        LEFT JOIN caseworker_youth cw ON cw.youth_id = yp.youth_id
+        WHERE yp.youth_id = ?
+        LIMIT 1
+        """
+    else:
+        query = """
+        SELECT
+            youth_id,
+            age,
+            county,
+            education,
+            employment,
+            housing,
+            mentor_status,
+            placement_count,
+            prior_homelessness,
+            '' AS first_name,
+            '' AS last_name
+        FROM youth_profiles
+        WHERE youth_id = ?
+        LIMIT 1
+        """
+
+    return pd.read_sql_query(
+        query,
+        connection,
+        params=[youth_id],
+    )
+
+
 def update_case_status(connection: sqlite3.Connection, youth_id: str, case_status: str) -> None:
     connection.execute(
         """
@@ -1150,23 +1197,26 @@ def estimate_transition_date(age: object) -> str:
 
 def render_top_navigation(current_page: str) -> None:
     buttons = [
-        ("Overview", OVERVIEW_URL, "overview"),
-        ("Youth Dashboard", YOUTH_DASHBOARD_URL, "youth_dashboard"),
-        ("Youth Profiles", PROFILE_LOOKUP_URL, "profile_lookup"),
-        ("AI Assistant", AI_ASSISTANT_URL, "ai_assistant"),
-        ("Caseworker Dashboard", CASEWORKER_URL, "caseworker_dashboard"),
+        ("Overview", "overview"),
+        ("Youth Dashboard", "youth_dashboard"),
+        ("AI Assistant", "ai_assistant"),
+        ("Caseworker Dashboard", "caseworker_dashboard"),
     ]
-    cols = st.columns(5)
-    for idx, (label, url, page_key) in enumerate(buttons):
+    cols = st.columns(4)
+    for idx, (label, page_key) in enumerate(buttons):
         with cols[idx]:
             if page_key == current_page:
-                st.link_button(label, url=url, use_container_width=True, disabled=True)
+                st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
-                st.link_button(label, url=url, use_container_width=True)
+                if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
+                    next_url = switch_dashboard(page_key, current_key=current_page)
+                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+                    st.stop()
 
 
 def render() -> None:
     st.set_page_config(page_title="Future Path Caseworker Dashboard", page_icon="FP", layout="wide")
+    ensure_single_dashboard("caseworker_dashboard")
     inject_caseworker_dashboard_styles()
     st.markdown(
         """
@@ -1509,11 +1559,42 @@ def render() -> None:
     st.divider()
     st.subheader("Case Management Workspace")
 
+    selection_mode_col, selection_query_col = st.columns([1, 2])
+    with selection_mode_col:
+        selection_mode = st.radio(
+            "Find Youth By",
+            options=["Youth ID", "Name"],
+            horizontal=True,
+        )
+    with selection_query_col:
+        placeholder = "e.g., YP-0001" if selection_mode == "Youth ID" else "e.g., Aaliyah Smith"
+        selection_query = st.text_input("Search My Assigned Youth", placeholder=placeholder)
+
+    profile_picker_df = my_cases_df.copy()
+    profile_picker_df["display_name"] = profile_picker_df["youth_id"].astype(str).map(youth_name_map)
+    profile_picker_df["display_name"] = profile_picker_df["display_name"].fillna(profile_picker_df["youth_id"].astype(str))
+    profile_picker_df["search_name"] = profile_picker_df["display_name"].str.lower()
+
+    cleaned_selection_query = selection_query.strip().lower()
+    if cleaned_selection_query:
+        if selection_mode == "Youth ID":
+            profile_picker_df = profile_picker_df[
+                profile_picker_df["youth_id"].astype(str).str.lower().str.contains(cleaned_selection_query, na=False)
+            ]
+        else:
+            profile_picker_df = profile_picker_df[
+                profile_picker_df["search_name"].str.contains(cleaned_selection_query, na=False)
+            ]
+
+    if profile_picker_df.empty:
+        st.info("No assigned youth matched your search.")
+        return
+
     selected_case_label = st.selectbox(
         "Open Youth Profile",
         options=[
-            f"{youth_name_map.get(str(row['youth_id']), str(row['youth_id']))} ({row['youth_id']}) | {row['risk_level']} | {row['top_need_category']}"
-            for _, row in my_cases_df.iterrows()
+            f"{row['display_name']} ({row['youth_id']}) | {row['risk_level']} | {row['top_need_category']}"
+            for _, row in profile_picker_df.iterrows()
         ],
         index=0,
     )
@@ -1522,6 +1603,32 @@ def render() -> None:
         selected_youth_id = str(st.session_state["selected_youth_id"])
         st.session_state.pop("selected_youth_id", None)
     selected_case_row = my_cases_df[my_cases_df["youth_id"] == selected_youth_id].iloc[0]
+
+    with sqlite3.connect(db_path) as connection:
+        profile_snapshot_df = load_youth_profile_snapshot(connection, selected_youth_id)
+
+    st.markdown('<div class="cw-section-card">', unsafe_allow_html=True)
+    st.markdown("#### Youth Profile Snapshot")
+    if profile_snapshot_df.empty:
+        st.info("No profile details found for this youth.")
+    else:
+        profile = profile_snapshot_df.iloc[0]
+        full_name = f"{str(profile.get('first_name', '')).strip()} {str(profile.get('last_name', '')).strip()}".strip()
+        c1, c2, c3 = st.columns(3)
+        c1.write(f"Name: {full_name or youth_name_map.get(str(selected_youth_id), str(selected_youth_id))}")
+        c1.write(f"Youth ID: {profile['youth_id']}")
+        c1.write(f"Age: {int(profile['age']) if pd.notna(profile.get('age')) else '-'}")
+        c2.write(f"County: {profile['county']}")
+        c2.write(f"Education: {profile['education']}")
+        c2.write(f"Employment: {profile['employment']}")
+        c3.write(f"Housing: {profile['housing']}")
+        c3.write(f"Mentor Status: {profile['mentor_status']}")
+        c3.write(
+            f"Placement Count: {int(profile['placement_count']) if pd.notna(profile.get('placement_count')) else '-'}"
+        )
+        c3.write(f"Prior Homelessness: {profile['prior_homelessness']}")
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.caption("Profile details are now available directly in the caseworker workspace.")
 
     p1, p2, p3, p4 = st.columns(4)
     p1.metric("Youth", youth_name_map.get(str(selected_youth_id), str(selected_youth_id)))

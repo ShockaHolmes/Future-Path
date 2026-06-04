@@ -15,6 +15,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from assign_resources_from_intake import AssignmentResult, assign_resources_from_intake
+from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
 from future_path_ai_intake import QUESTIONS, infer_summary_needs, resolve_profile_link, save_answer
 from future_path_ai_intake import ensure_intake_tables as ensure_intake_tables_base
 
@@ -80,19 +81,22 @@ def render_notice() -> None:
 
 def render_top_navigation(current_page: str) -> None:
     buttons = [
-        ("Overview", OVERVIEW_URL, "overview"),
-        ("Youth Dashboard", YOUTH_DASHBOARD_URL, "youth_dashboard"),
-        ("Youth Profiles", PROFILE_LOOKUP_URL, "profile_lookup"),
-        ("AI Assistant", AI_ASSISTANT_URL, "ai_assistant"),
-        ("Caseworker Dashboard", CASEWORKER_URL, "caseworker_dashboard"),
+        ("Overview", "overview"),
+        ("Youth Dashboard", "youth_dashboard"),
+        ("Youth Profiles", "profile_lookup"),
+        ("AI Assistant", "ai_assistant"),
+        ("Caseworker Dashboard", "caseworker_dashboard"),
     ]
     cols = st.columns(5)
-    for idx, (label, url, page_key) in enumerate(buttons):
+    for idx, (label, page_key) in enumerate(buttons):
         with cols[idx]:
             if page_key == current_page:
-                st.link_button(label, url=url, use_container_width=True, disabled=True)
+                st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
-                st.link_button(label, url=url, use_container_width=True)
+                if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
+                    next_url = switch_dashboard(page_key, current_key=current_page)
+                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
+                    st.stop()
 
 
 def inject_ai_assistant_styles() -> None:
@@ -848,6 +852,7 @@ def render_final_summary() -> None:
 
 def render() -> None:
     st.set_page_config(page_title="Future Path AI Assistant", page_icon="FP", layout="wide")
+    ensure_single_dashboard("ai_assistant")
     initialize_state()
 
     inject_ai_assistant_styles()
