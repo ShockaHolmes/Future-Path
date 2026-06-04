@@ -63,11 +63,13 @@ launch_streamlit "overview" "dashboard/overview.py" 8501
 launch_streamlit "profile_lookup" "dashboard/profile_lookup.py" 8502
 launch_streamlit "ai_assistant" "dashboard/ai_assistant.py" 8503
 launch_streamlit "caseworker_dashboard" "dashboard/caseworker_dashboard.py" 8504
+launch_streamlit "youth_dashboard" "dashboard/youth_dashboard.py" 8505
 
 wait_for_http 8501 "Overview"
 wait_for_http 8502 "Profile Lookup"
 wait_for_http 8503 "AI Assistant"
 wait_for_http 8504 "Caseworker Dashboard"
+wait_for_http 8505 "Youth Dashboard"
 
 echo
 echo "Future Path is running."
@@ -75,6 +77,7 @@ echo "Overview:       http://localhost:8501"
 echo "Profile Lookup: http://localhost:8502"
 echo "AI Assistant:   http://localhost:8503"
 echo "Caseworker:     http://localhost:8504"
+echo "Youth:          http://localhost:8505"
 echo
 echo "Press Ctrl+C here to stop all Future Path apps."
 
@@ -82,5 +85,6 @@ open "http://localhost:8501" >/dev/null 2>&1 || true
 open "http://localhost:8502" >/dev/null 2>&1 || true
 open "http://localhost:8503" >/dev/null 2>&1 || true
 open "http://localhost:8504" >/dev/null 2>&1 || true
+open "http://localhost:8505" >/dev/null 2>&1 || true
 
 wait

@@ -12,6 +12,11 @@ import streamlit as st
 DEFAULT_DB_PATH = Path("database/future_path.db")
 STATE_ICON_PATH = Path("Assets/FuturePathPNG/State-of-Delaware.png")
 LAUNCH_LOGO_PATH = Path("Assets/FuturePathPNG/Future-Path-Launch-Logo.png")
+OVERVIEW_URL = "http://localhost:8501"
+PROFILE_LOOKUP_URL = "http://localhost:8502"
+AI_ASSISTANT_URL = "http://localhost:8503"
+CASEWORKER_URL = "http://localhost:8504"
+YOUTH_DASHBOARD_URL = "http://localhost:8505"
 
 
 def load_image_data_uri(image_path: Path) -> str | None:
@@ -910,22 +915,20 @@ def render_insight_cards(insights: list[str]) -> None:
 
 def render_top_navigation(current_page: str) -> None:
     buttons = [
-        ("Overview", "overview.py", "overview"),
-        ("Youth Profiles", "profile_lookup.py", "profile_lookup"),
-        ("AI Assistant", "ai_assistant.py", "ai_assistant"),
-        ("Caseworker Dashboard", "caseworker_dashboard.py", "caseworker_dashboard"),
+        ("Overview", OVERVIEW_URL, "overview"),
+        ("Youth Dashboard", YOUTH_DASHBOARD_URL, "youth_dashboard"),
+        ("Youth Profiles", PROFILE_LOOKUP_URL, "profile_lookup"),
+        ("AI Assistant", AI_ASSISTANT_URL, "ai_assistant"),
+        ("Caseworker Dashboard", CASEWORKER_URL, "caseworker_dashboard"),
     ]
-    cols = st.columns(4)
-    for idx, (label, target, page_key) in enumerate(buttons):
+    cols = st.columns(5)
+    for idx, (label, url, page_key) in enumerate(buttons):
         with cols[idx]:
             key = f"topnav_std_{page_key}"
             if page_key == current_page:
-                st.button(label, width="stretch", disabled=True, key=key)
-            elif st.button(label, width="stretch", key=key):
-                try:
-                    st.switch_page(target)
-                except Exception:
-                    st.info(f"Open {target} from Streamlit multipage navigation.")
+                st.link_button(label, url=url, use_container_width=True, disabled=True)
+            else:
+                st.link_button(label, url=url, use_container_width=True)
 
 
 def render() -> None:
@@ -943,23 +946,11 @@ def render() -> None:
     )
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Navigation")
-    if st.sidebar.button("Overview", width="stretch"):
-        st.rerun()
-    if st.sidebar.button("Youth Profiles", width="stretch"):
-        try:
-            st.switch_page("profile_lookup.py")
-        except Exception:
-            st.info("Open profile_lookup.py from Streamlit multipage navigation.")
-    if st.sidebar.button("AI Assistant", width="stretch"):
-        try:
-            st.switch_page("ai_assistant.py")
-        except Exception:
-            st.info("Open ai_assistant.py from Streamlit multipage navigation.")
-    if st.sidebar.button("Caseworker Dashboard", width="stretch"):
-        try:
-            st.switch_page("caseworker_dashboard.py")
-        except Exception:
-            st.info("Open caseworker_dashboard.py from Streamlit multipage navigation.")
+    st.sidebar.link_button("Overview", OVERVIEW_URL, use_container_width=True, disabled=True)
+    st.sidebar.link_button("Youth Dashboard", YOUTH_DASHBOARD_URL, use_container_width=True)
+    st.sidebar.link_button("Youth Profiles", PROFILE_LOOKUP_URL, use_container_width=True)
+    st.sidebar.link_button("AI Assistant", AI_ASSISTANT_URL, use_container_width=True)
+    st.sidebar.link_button("Caseworker Dashboard", CASEWORKER_URL, use_container_width=True)
     st.sidebar.markdown("---")
     st.sidebar.markdown("#### Quick Insight")
     st.sidebar.caption("Use the filters in the main view to narrow the dashboard by county or risk level.")
@@ -987,6 +978,12 @@ def render() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+    launch_col1, launch_col2 = st.columns([1.1, 2.4])
+    with launch_col1:
+        st.link_button("Open Youth Dashboard", YOUTH_DASHBOARD_URL, type="primary", use_container_width=True)
+    with launch_col2:
+        st.caption("For youth users: complete intake, view assigned resources, and contact your caseworker.")
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
     st.sidebar.write("Use the pipeline outputs to populate the database before viewing metrics.")
