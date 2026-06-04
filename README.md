@@ -104,8 +104,15 @@ Future-Path/
 
 ### Double-Click Launcher
 
-On macOS, double-click [start.command](start.command) to migrate the database, run the pipeline, and open all dashboard views.
+On macOS, double-click [start.command](start.command) to migrate the database, run the pipeline, and open the Overview dashboard.
 You can also double-click [Future Path.app](Future%20Path.app) for the same behavior from Finder.
+
+Current launcher behavior:
+- Starts Overview first at `http://localhost:8501`
+- Starts other dashboards only when you click dashboard navigation buttons
+- Stops previously open dashboard servers as you switch views
+- Automatically stops dashboard servers after all dashboard tabs/windows are closed
+- Also stops all dashboard servers when you end the launcher session (Ctrl+C)
 
 ### 1. Install Dependencies
 
