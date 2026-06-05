@@ -39,19 +39,38 @@ Future Path addresses these challenges by providing:
 
 ## Project Architecture
 
+Labels: documentation, architecture, diagram
+
 ```mermaid
 flowchart LR
-    A[Generate Synthetic Data] --> B[Clean and Validate Data]
-    B --> C[Load SQLite Tables]
-    C --> D[Risk Scoring]
-    C --> E[AI Intake Sessions]
-    D --> F[Recommendations]
-    E --> F
-    F --> G[Assigned Resources]
-    C --> H[Streamlit Dashboards]
-    D --> H
-    F --> H
+    subgraph DataPipeline[Data Pipeline]
+        A[Synthetic Data Generator]
+        B[Raw Data Storage]
+        C[Cleaning Pipeline]
+        D[Validation]
+        E[SQLite Database]
+        F[Risk Scoring]
+        G[Resource Recommendations]
+
+        A --> B --> C --> D --> E --> F --> G
+    end
+
+    subgraph AssistantWorkflow[AI Assistant Workflow]
+        H[AI Assistant Intake]
+        I[Intake Answers and Session Context]
+        J[Recommendation and Assignment Logic]
+
+        H --> I --> J
+    end
+
     E --> H
+    E --> J
+    F --> J
+    J --> G
+    E --> K[Streamlit Dashboard]
+    F --> K
+    G --> K
+    H --> K
 ```
 
 ### Core Data Flow
@@ -183,6 +202,74 @@ pytest -q
 ```
 
 Current expected result: all tests pass.
+
+## 60-Second Demo Flow
+
+Labels: demo, presentation
+
+Use this script for a one-minute walkthrough of the project value and core features.
+
+One-page speaker version: [docs/demo-cheat-sheet.md](docs/demo-cheat-sheet.md)
+
+### Prep Before Presenting
+
+Run once before the timed demo so the app is warm and ready:
+
+```bash
+python3 src/run_data_pipeline.py
+streamlit run dashboard/overview.py
+```
+
+### Live Demo Script (60 Seconds)
+
+1. 0:00-0:08 | Explain the problem
+- "Youth transition programs often have fragmented data and limited visibility into who needs help first."
+- "Future Path unifies data, scoring, and support recommendations in one workflow."
+
+2. 0:08-0:15 | Run pipeline
+- In terminal, run:
+
+```bash
+python3 src/run_data_pipeline.py
+```
+
+- Narration: "This generates synthetic records, cleans and validates data, loads SQLite tables, and computes matching outputs."
+- If timing is tight, show the most recent successful pipeline terminal output from your prep run.
+
+3. 0:15-0:25 | Open dashboard
+- In browser, show Overview at `http://localhost:8501`.
+- Narration: "This dashboard gives operational visibility across youth outcomes and support activity."
+
+4. 0:25-0:33 | Show risk score
+- Point to risk-level and risk-summary sections on Overview or Youth Dashboard.
+- Narration: "Risk scoring is transparent and auditable, so teams can prioritize high-need youth."
+
+5. 0:33-0:50 | Complete AI Assistant intake
+- Navigate to AI Assistant and answer the guided questions quickly.
+- Narration: "The intake captures structured answers and converts them into actionable need signals."
+
+6. 0:50-1:00 | Show recommended resources
+- Show generated recommendations with priority and contact details.
+- Narration: "Recommendations combine risk context and intake responses, including phone/email/website for follow-through."
+
+### Presenter Talking Points (Quick Reference)
+
+- Problem: fragmented data slows support decisions.
+- Solution: reproducible pipeline + AI-guided intake + explainable recommendations.
+- Reliability: validation checks, SQLite persistence, and automated tests.
+- Outcome: faster, clearer, and more actionable youth support planning.
+
+### Screenshot Fallback (If Live Demo Fails)
+
+Use these existing assets in order:
+
+1. [docs/screenshots/dashboard-overview.svg](docs/screenshots/dashboard-overview.svg) for architecture outcome, dashboard, and risk overview.
+2. [docs/screenshots/ai-assistant.svg](docs/screenshots/ai-assistant.svg) for intake workflow and recommendation handoff.
+
+Optional: capture two additional backups before presenting:
+
+- `docs/screenshots/risk-score-view.png`
+- `docs/screenshots/recommended-resources-view.png`
 
 ## AI Assistant Explanation
 
