@@ -51,6 +51,7 @@ def generate_next_youth_id(connection: sqlite3.Connection) -> str:
 
 def load_promotable_candidate_intakes(connection: sqlite3.Connection) -> pd.DataFrame:
     columns = [
+        "candidate_name",
         "candidate_profile_id",
         "intake_session_id",
         "session_status",
@@ -79,7 +80,7 @@ def load_promotable_candidate_intakes(connection: sqlite3.Connection) -> pd.Data
             FROM intake_sessions
             WHERE profile_type = 'candidate'
               AND candidate_profile_id IS NOT NULL
-              AND LOWER(COALESCE(session_status, '')) = 'completed'
+              AND LOWER(COALESCE(session_status, '')) IN ('in_progress', 'completed')
         )
         SELECT
             candidate_profile_id,
@@ -97,6 +98,25 @@ def load_promotable_candidate_intakes(connection: sqlite3.Connection) -> pd.Data
 
     if frame.empty:
         return pd.DataFrame(columns=columns)
+
+    if table_exists(connection, "candidate_profiles"):
+        names_df = pd.read_sql_query(
+            """
+            SELECT candidate_profile_id, COALESCE(first_name, '') AS first_name, COALESCE(last_name, '') AS last_name
+            FROM candidate_profiles
+            """,
+            connection,
+        )
+        if not names_df.empty:
+            names_df["candidate_name"] = (
+                names_df["first_name"].astype(str).str.strip() + " " + names_df["last_name"].astype(str).str.strip()
+            ).str.strip()
+            names_df["candidate_name"] = names_df["candidate_name"].replace("", pd.NA)
+            frame = frame.merge(names_df[["candidate_profile_id", "candidate_name"]], on="candidate_profile_id", how="left")
+
+    if "candidate_name" not in frame.columns:
+        frame["candidate_name"] = pd.NA
+    frame["candidate_name"] = frame["candidate_name"].fillna(frame["candidate_profile_id"].astype(str))
 
     if table_exists(connection, "assigned_resources"):
         assignment_counts = pd.read_sql_query(

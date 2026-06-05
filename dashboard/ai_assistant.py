@@ -55,6 +55,47 @@ def ensure_intake_tables(connection: sqlite3.Connection) -> None:
     ensure_intake_tables_base(connection)
 
 
+def ensure_candidate_profiles_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS candidate_profiles (
+            candidate_profile_id TEXT PRIMARY KEY,
+            first_name TEXT,
+            last_name TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def upsert_candidate_profile(
+    connection: sqlite3.Connection,
+    candidate_profile_id: str,
+    first_name: str,
+    last_name: str,
+) -> None:
+    normalized_candidate_id = candidate_profile_id.strip()
+    if not normalized_candidate_id:
+        return
+
+    connection.execute(
+        """
+        INSERT INTO candidate_profiles (candidate_profile_id, first_name, last_name)
+        VALUES (?, ?, ?)
+        ON CONFLICT(candidate_profile_id) DO UPDATE SET
+            first_name = excluded.first_name,
+            last_name = excluded.last_name,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (
+            normalized_candidate_id,
+            first_name.strip() or None,
+            last_name.strip() or None,
+        ),
+    )
+
+
 def initialize_state() -> None:
     defaults = {
         "assistant_started": False,
@@ -63,6 +104,8 @@ def initialize_state() -> None:
         "assistant_profile_type": "youth",
         "assistant_youth_id": "",
         "assistant_candidate_id": "",
+        "assistant_candidate_first_name": "",
+        "assistant_candidate_last_name": "",
         "assistant_current_index": 0,
         "assistant_answers": {},
         "assistant_summary_needs": [],
@@ -70,6 +113,8 @@ def initialize_state() -> None:
         "assistant_error": "",
         "assistant_selected_choice": "",
         "assistant_audio_autoplay_index": -1,
+        "assistant_pending_profile_type": None,
+        "assistant_pending_candidate_id": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -80,6 +125,11 @@ def reset_assistant_state() -> None:
     st.session_state["assistant_started"] = False
     st.session_state["assistant_completed"] = False
     st.session_state["assistant_session_id"] = ""
+    st.session_state["assistant_profile_type"] = "youth"
+    st.session_state["assistant_youth_id"] = ""
+    st.session_state["assistant_candidate_id"] = ""
+    st.session_state["assistant_candidate_first_name"] = ""
+    st.session_state["assistant_candidate_last_name"] = ""
     st.session_state["assistant_current_index"] = 0
     st.session_state["assistant_answers"] = {}
     st.session_state["assistant_summary_needs"] = []
@@ -772,6 +822,33 @@ def inject_ai_assistant_styles() -> None:
         .stProgress > div > div > div > div {
             background-color: var(--fp-accent-teal) !important;
         }
+
+        .ai-jump-link {
+            display: block;
+            width: 100%;
+            text-decoration: none !important;
+            border: 1px solid var(--fp-button-border);
+            border-radius: 10px;
+            background: var(--fp-button-background);
+            color: var(--fp-button-text) !important;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.42rem 0.55rem;
+            margin: 0.18rem 0;
+        }
+
+        .ai-jump-link:hover {
+            background: var(--fp-button-hover);
+            color: var(--fp-button-text) !important;
+        }
+
+        .ai-anchor-target {
+            position: relative;
+            top: -72px;
+            visibility: hidden;
+            height: 0;
+            display: block;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1205,6 +1282,7 @@ def render_question_input(connection: sqlite3.Connection, db_path: Path) -> None
 
 
 def render_final_summary() -> None:
+    st.markdown('<span id="ai-summary" class="ai-anchor-target"></span>', unsafe_allow_html=True)
     session_id = st.session_state["assistant_session_id"]
     st.success("Intake complete. Recommendations generated.")
     st.caption(f"Session ID: {session_id}")
@@ -1333,30 +1411,68 @@ def render() -> None:
     render_theme_toggle()
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
+    st.sidebar.divider()
+    st.sidebar.markdown("### Quick Jump")
+    assistant_jump_tabs = st.sidebar.tabs(["Top", "Workflow", "Records"])
+    with assistant_jump_tabs[0]:
+        st.markdown('<a class="ai-jump-link" href="#ai-start-intake">Start Intake</a>', unsafe_allow_html=True)
+    with assistant_jump_tabs[1]:
+        st.markdown('<a class="ai-jump-link" href="#ai-current-intake">Current Intake</a>', unsafe_allow_html=True)
+    with assistant_jump_tabs[2]:
+        st.markdown('<a class="ai-jump-link" href="#ai-summary">Summary</a>', unsafe_allow_html=True)
 
     if not db_path.exists():
         st.error(f"Database not found at: {db_path}")
         st.info("Run the data pipeline first, then return to this page.")
         return
 
+    pending_profile_type = st.session_state.pop("assistant_pending_profile_type", None)
+    if pending_profile_type is not None:
+        st.session_state["assistant_profile_type"] = pending_profile_type
+
+    pending_candidate_id = st.session_state.pop("assistant_pending_candidate_id", None)
+    if pending_candidate_id is not None:
+        st.session_state["assistant_candidate_id"] = pending_candidate_id
+
+    st.markdown('<span id="ai-start-intake" class="ai-anchor-target"></span>', unsafe_allow_html=True)
     if not st.session_state["assistant_started"]:
         st.markdown('<div class="ai-section-card">', unsafe_allow_html=True)
         st.subheader("Start Intake")
         st.write("Select whether this intake is for a youth profile or a candidate profile.")
 
-        profile_type = str(st.radio("Profile Type", options=["youth", "candidate"], horizontal=True))
+        profile_type = str(
+            st.radio(
+                "Profile Type",
+                options=["youth", "candidate"],
+                horizontal=True,
+                key="assistant_profile_type",
+            )
+        )
         youth_id_input = st.text_input(
             "Youth ID",
-            value=st.session_state["assistant_youth_id"],
+            key="assistant_youth_id",
             disabled=profile_type != "youth",
         )
         candidate_id_col, candidate_action_col = st.columns([2.2, 1])
         with candidate_id_col:
             candidate_id_input = st.text_input(
                 "Candidate Profile ID",
-                value=st.session_state["assistant_candidate_id"],
+                key="assistant_candidate_id",
                 disabled=profile_type != "candidate",
             )
+            candidate_name_col1, candidate_name_col2 = st.columns(2)
+            with candidate_name_col1:
+                candidate_first_name_input = st.text_input(
+                    "Candidate First Name",
+                    key="assistant_candidate_first_name",
+                    disabled=profile_type != "candidate",
+                )
+            with candidate_name_col2:
+                candidate_last_name_input = st.text_input(
+                    "Candidate Last Name",
+                    key="assistant_candidate_last_name",
+                    disabled=profile_type != "candidate",
+                )
         with candidate_action_col:
             st.write("")
             st.write("")
@@ -1367,8 +1483,27 @@ def render() -> None:
                 disabled=profile_type != "candidate",
             ):
                 with sqlite3.connect(db_path) as generate_connection:
+                    generate_connection.execute("PRAGMA foreign_keys = ON")
                     generated_id = generate_next_candidate_id(generate_connection)
-                st.session_state["assistant_candidate_id"] = generated_id
+                    draft_session_id = f"intake-candidate-draft-{uuid4()}"
+                    start_intake_session(
+                        generate_connection,
+                        session_id=draft_session_id,
+                        profile_type="candidate",
+                        youth_id="",
+                        candidate_id=generated_id,
+                    )
+                    ensure_candidate_profiles_table(generate_connection)
+                    upsert_candidate_profile(
+                        generate_connection,
+                        candidate_profile_id=generated_id,
+                        first_name=str(candidate_first_name_input or ""),
+                        last_name=str(candidate_last_name_input or ""),
+                    )
+                    generate_connection.commit()
+                st.session_state["assistant_pending_profile_type"] = "candidate"
+                st.session_state["assistant_pending_candidate_id"] = generated_id
+                st.success(f"Candidate {generated_id} added to queue. Complete intake when ready.")
                 st.rerun()
 
         if profile_type == "candidate":
@@ -1386,9 +1521,6 @@ def render() -> None:
         if st.button("Start Future Path AI Assistant", type="primary", width="stretch", disabled=start_disabled):
             session_id = f"intake-{uuid4()}"
             st.session_state["assistant_session_id"] = session_id
-            st.session_state["assistant_profile_type"] = profile_type
-            st.session_state["assistant_youth_id"] = youth_id.strip()
-            st.session_state["assistant_candidate_id"] = candidate_id.strip()
             st.session_state["assistant_started"] = True
             st.session_state["assistant_completed"] = False
             st.session_state["assistant_current_index"] = 0
@@ -1406,6 +1538,14 @@ def render() -> None:
                     youth_id=youth_id,
                     candidate_id=candidate_id,
                 )
+                if profile_type == "candidate":
+                    ensure_candidate_profiles_table(connection)
+                    upsert_candidate_profile(
+                        connection,
+                        candidate_profile_id=candidate_id,
+                        first_name=str(candidate_first_name_input or ""),
+                        last_name=str(candidate_last_name_input or ""),
+                    )
                 connection.commit()
 
             st.rerun()
@@ -1416,6 +1556,7 @@ def render() -> None:
         render_final_summary()
         return
 
+    st.markdown('<span id="ai-current-intake" class="ai-anchor-target"></span>', unsafe_allow_html=True)
     render_progress()
     st.markdown('<div class="ai-question-card"><div class="ai-question-heading">Your current intake</div><div class="ai-question-text">Answer the question below and continue through the assessment.</div></div>', unsafe_allow_html=True)
 

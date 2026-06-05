@@ -29,6 +29,19 @@ AI_ASSISTANT_URL = "http://localhost:8503"
 CASEWORKER_URL = "http://localhost:8504"
 YOUTH_DASHBOARD_URL = "http://localhost:8505"
 
+QUESTION_AUDIO_FILES: dict[str, str] = {
+    "housing_status": "Assets/audio/Housing.mp3",
+    "employment_status": "Assets/audio/Employment.mp3",
+    "education_status": "Assets/audio/Education.mp3",
+    "transportation_access": "Assets/audio/Transportation.mp3",
+    "food_access": "Assets/audio/Food-Access.mp3",
+    "health_wellness_need": "Assets/audio/Health-Wellness.mp3",
+    "documents_status": "Assets/audio/Key-Documents.mp3",
+    "support_system": "Assets/audio/Support-System.mp3",
+    "safety_concern": "Assets/audio/Safety-Concerns.mp3",
+    "primary_need": "Assets/audio/Primary-Need.mp3",
+}
+
 
 def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
     row = connection.execute(
@@ -80,6 +93,8 @@ def initialize_state() -> None:
         "youth_current_index": 0,
         "youth_answers": {},
         "youth_selected_choice": "",
+        "youth_audio_autoplay_index": -1,
+        "youth_voice_autoplay_enabled": True,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -93,6 +108,30 @@ def reset_intake_state() -> None:
     st.session_state["youth_current_index"] = 0
     st.session_state["youth_answers"] = {}
     st.session_state["youth_selected_choice"] = ""
+    st.session_state["youth_audio_autoplay_index"] = -1
+
+
+@st.cache_data(show_spinner=False)
+def load_audio_bytes(audio_file_path: str) -> bytes:
+    return Path(audio_file_path).read_bytes()
+
+
+def render_question_audio(question_key: str, current_index: int) -> None:
+    audio_file = QUESTION_AUDIO_FILES.get(question_key)
+    if not audio_file:
+        return
+
+    audio_path = PROJECT_ROOT / audio_file
+    if not audio_path.exists():
+        st.caption("Question audio file is not available.")
+        return
+
+    autoplay_enabled = bool(st.session_state.get("youth_voice_autoplay_enabled", True))
+    should_autoplay = autoplay_enabled and st.session_state.get("youth_audio_autoplay_index", -1) != current_index
+    if autoplay_enabled and should_autoplay:
+        st.session_state["youth_audio_autoplay_index"] = current_index
+
+    st.audio(load_audio_bytes(str(audio_path)), format="audio/mp3", autoplay=should_autoplay)
 
 
 def render_top_navigation(current_page: str) -> None:
@@ -380,6 +419,33 @@ def inject_styles() -> None:
             background: var(--fp-button-primary-background) !important;
             color: var(--fp-button-primary-text) !important;
             border-color: var(--fp-button-primary-border) !important;
+        }
+
+        .youth-jump-link {
+            display: block;
+            width: 100%;
+            text-decoration: none !important;
+            border: 1px solid var(--fp-button-border);
+            border-radius: 10px;
+            background: var(--fp-button-background);
+            color: var(--fp-button-text) !important;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.42rem 0.55rem;
+            margin: 0.18rem 0;
+        }
+
+        .youth-jump-link:hover {
+            background: var(--fp-button-hover);
+            color: var(--fp-button-text) !important;
+        }
+
+        .youth-anchor-target {
+            position: relative;
+            top: -72px;
+            visibility: hidden;
+            height: 0;
+            display: block;
         }
 
         [data-testid='stDataFrame'] [role='columnheader'],
@@ -917,6 +983,7 @@ def render_intake_flow(connection: sqlite3.Connection, youth_id: str, intake_loc
     question = QUESTIONS[current_index]
     question_key = question["key"]
     st.markdown(f"**{question['prompt']}**")
+    render_question_audio(question_key, current_index)
 
     default_choice = st.session_state.get("youth_selected_choice") or question["options"][0]
     choice = st.radio(
@@ -1002,6 +1069,28 @@ def render() -> None:
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
     st.sidebar.caption("Use your youth profile to view resources, next steps, and follow-ups.")
+    st.sidebar.toggle(
+        "Voice prompts autoplay",
+        key="youth_voice_autoplay_enabled",
+        help="Turn off to keep question audio available without auto-playing each question.",
+    )
+    st.sidebar.divider()
+    st.sidebar.markdown("### Quick Jump")
+    youth_jump_tabs = st.sidebar.tabs(["Top", "Workflow", "Records"])
+    with youth_jump_tabs[0]:
+        st.markdown('<a class="youth-jump-link" href="#youth-profile">Profile</a>', unsafe_allow_html=True)
+        st.markdown('<a class="youth-jump-link" href="#youth-kpis">KPI Cards</a>', unsafe_allow_html=True)
+        st.markdown('<a class="youth-jump-link" href="#youth-intake">AI Intake</a>', unsafe_allow_html=True)
+        st.markdown('<a class="youth-jump-link" href="#youth-resources">Assigned Resources</a>', unsafe_allow_html=True)
+    with youth_jump_tabs[1]:
+        st.markdown('<a class="youth-jump-link" href="#youth-needs">Top Needs</a>', unsafe_allow_html=True)
+        st.markdown('<a class="youth-jump-link" href="#youth-next-steps">Next Steps</a>', unsafe_allow_html=True)
+        st.markdown('<a class="youth-jump-link" href="#youth-caseworker">Caseworker</a>', unsafe_allow_html=True)
+        st.markdown('<a class="youth-jump-link" href="#youth-help-request">Request Help</a>', unsafe_allow_html=True)
+    with youth_jump_tabs[2]:
+        st.markdown('<a class="youth-jump-link" href="#youth-followups">Follow-Ups</a>', unsafe_allow_html=True)
+        st.markdown('<a class="youth-jump-link" href="#youth-tracker">Status Tracker</a>', unsafe_allow_html=True)
+        st.markdown('<a class="youth-jump-link" href="#youth-help-log">Help Requests</a>', unsafe_allow_html=True)
 
     if not db_path.exists():
         st.error(f"Database not found at: {db_path}")
@@ -1021,6 +1110,7 @@ def render() -> None:
         st.warning("No youth profiles found yet.")
         return
 
+    st.markdown('<span id="youth-profile" class="youth-anchor-target"></span>', unsafe_allow_html=True)
     selected_option = st.selectbox("Select your profile", options=youth_options["display_option"].tolist(), index=0)
     selected_youth_id = selected_option.rsplit("(", 1)[1].rstrip(")")
 
@@ -1075,6 +1165,7 @@ def render() -> None:
         if intake_locked:
             st.session_state["youth_intake_completed"] = True
 
+    st.markdown('<span id="youth-kpis" class="youth-anchor-target"></span>', unsafe_allow_html=True)
     k1, k2, k3, k4, k5 = st.columns(5)
     with k1:
         st.markdown(
@@ -1127,6 +1218,7 @@ def render() -> None:
             unsafe_allow_html=True,
         )
 
+    st.markdown('<span id="youth-intake" class="youth-anchor-target"></span>', unsafe_allow_html=True)
     with sqlite3.connect(db_path) as intake_connection:
         intake_connection.row_factory = sqlite3.Row
         render_intake_flow(intake_connection, selected_youth_id, intake_locked, intake_completed_label)
@@ -1135,6 +1227,7 @@ def render() -> None:
 
     with left_col:
         st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
+        st.markdown('<span id="youth-needs" class="youth-anchor-target"></span>', unsafe_allow_html=True)
         st.subheader("My Top Needs")
         if top_needs:
             for need in top_needs[:5]:
@@ -1144,6 +1237,7 @@ def render() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
+        st.markdown('<span id="youth-resources" class="youth-anchor-target"></span>', unsafe_allow_html=True)
         st.subheader("My Assigned Resources")
         if assigned_df.empty:
             st.info("No assigned resources yet. Complete intake to generate your support plan.")
@@ -1172,6 +1266,7 @@ def render() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
+        st.markdown('<span id="youth-next-steps" class="youth-anchor-target"></span>', unsafe_allow_html=True)
         st.subheader("My Next Steps")
         steps: list[str] = []
         if answers_df.empty:
@@ -1194,6 +1289,7 @@ def render() -> None:
 
     with right_col:
         st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
+        st.markdown('<span id="youth-caseworker" class="youth-anchor-target"></span>', unsafe_allow_html=True)
         st.subheader("My Caseworker")
         caseworker_id_for_request: str | None = None
         if caseworker_df.empty:
@@ -1210,6 +1306,7 @@ def render() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
+        st.markdown('<span id="youth-help-request" class="youth-anchor-target"></span>', unsafe_allow_html=True)
         st.subheader("Request Help From Caseworker")
         with st.form("youth_help_request_form", clear_on_submit=True):
             urgency = st.selectbox("Urgency", options=["Low", "Medium", "High", "Urgent"], index=1)
@@ -1238,6 +1335,7 @@ def render() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
+        st.markdown('<span id="youth-followups" class="youth-anchor-target"></span>', unsafe_allow_html=True)
         st.subheader("Upcoming Follow-Ups")
         if followups_df.empty:
             st.caption("No follow-ups scheduled yet.")
@@ -1256,6 +1354,7 @@ def render() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
+    st.markdown('<span id="youth-tracker" class="youth-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Resource Status Tracker")
     status_rows: list[dict[str, str]] = []
     if not recommended_df.empty:
@@ -1288,6 +1387,7 @@ def render() -> None:
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
+    st.markdown('<span id="youth-help-log" class="youth-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("My Help Requests")
     if help_df.empty:
         st.caption("No help requests submitted yet.")
