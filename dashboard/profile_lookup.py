@@ -14,6 +14,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
+from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
@@ -223,6 +224,10 @@ def inject_profile_lookup_styles() -> None:
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+        """
+        + theme_css_variables()
+        + theme_component_styles()
+        + """
 
         .stApp {
             background:
@@ -464,6 +469,146 @@ def inject_profile_lookup_styles() -> None:
                 text-align: left;
             }
         }
+
+        .stApp {
+            background:
+                radial-gradient(circle at 8% 4%, var(--fp-app-overlay-primary) 0%, rgba(15, 91, 215, 0.0) 35%),
+                radial-gradient(circle at 92% 9%, var(--fp-app-overlay-accent) 0%, rgba(239, 68, 68, 0.0) 30%),
+                linear-gradient(180deg, var(--fp-app-background) 0%, var(--fp-app-background-alt) 100%);
+            color: var(--fp-text-primary);
+        }
+
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, var(--fp-sidebar-background) 0%, var(--fp-sidebar-background-alt) 100%) !important;
+            color: var(--fp-sidebar-text) !important;
+            border-right: 1px solid var(--fp-sidebar-border) !important;
+        }
+
+        [data-testid="stSidebar"] * {
+            color: var(--fp-sidebar-text) !important;
+        }
+
+        [data-testid="stSidebar"] div[data-baseweb="input"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="select"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="textarea"] > div,
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="textarea"] > div {
+            background: var(--fp-input-background) !important;
+            border: 1px solid var(--fp-input-border) !important;
+            color: var(--fp-input-text) !important;
+        }
+
+        [data-testid="stSidebar"] input,
+        [data-testid="stSidebar"] textarea,
+        [data-testid="stSidebar"] span,
+        div[data-baseweb="select"] *,
+        div[data-baseweb="input"] input,
+        div[data-baseweb="textarea"] textarea {
+            color: var(--fp-input-text) !important;
+            opacity: 1 !important;
+        }
+
+        .pl-step-banner,
+        .pl-shell,
+        .pl-section-card,
+        .pl-metric-card,
+        .stDataFrame {
+            border-color: var(--fp-border-primary) !important;
+        }
+
+        .pl-step-banner {
+            background: linear-gradient(180deg, var(--fp-surface-tertiary) 0%, var(--fp-surface-secondary) 100%) !important;
+        }
+
+        .pl-step-title,
+        .pl-brand-left,
+        .pl-metric-value,
+        h1, h2, h3, h4,
+        .stMetric [data-testid="stMetricValue"] {
+            color: var(--fp-heading) !important;
+        }
+
+        .pl-shell {
+            background: linear-gradient(180deg, var(--fp-surface-primary) 0%, var(--fp-surface-secondary) 100%) !important;
+            box-shadow: 0 14px 38px var(--fp-shadow-soft) !important;
+        }
+
+        .pl-brandbar {
+            border-bottom: 1px solid var(--fp-border-secondary) !important;
+        }
+
+        .pl-brand-right,
+        .pl-metric-label,
+        .stCaption,
+        .stMarkdown p,
+        .stMarkdown li,
+        .stText,
+        .stMetric [data-testid="stMetricLabel"],
+        .stMetric label,
+        .stSelectbox label,
+        .stRadio label,
+        .stTextInput label,
+        .stMultiSelect label {
+            color: var(--fp-text-secondary) !important;
+        }
+
+        .pl-section-card {
+            background: var(--fp-surface-primary) !important;
+        }
+
+        .pl-metric-card {
+            background: var(--fp-surface-secondary) !important;
+        }
+
+        .stButton > button {
+            background: var(--fp-button-background) !important;
+            color: var(--fp-button-text) !important;
+            border: 1px solid var(--fp-button-border) !important;
+        }
+
+        .stButton > button:hover {
+            background: var(--fp-button-hover) !important;
+            color: var(--fp-button-text) !important;
+        }
+
+        .stButton > button[kind="primary"] {
+            background: var(--fp-button-primary-background) !important;
+            color: var(--fp-button-primary-text) !important;
+            border-color: var(--fp-button-primary-border) !important;
+        }
+
+        .stButton > button[kind="primary"]:hover {
+            background: var(--fp-button-primary-hover) !important;
+            color: var(--fp-button-primary-text) !important;
+        }
+
+        [data-testid="stDataFrame"] {
+            --gdg-bg-cell: var(--fp-data-cell-bg);
+            --gdg-bg-cell-medium: var(--fp-surface-secondary);
+            --gdg-bg-header: var(--fp-data-header-bg);
+            --gdg-bg-header-has-focus: var(--fp-data-header-focus-bg);
+            --gdg-border-color: var(--fp-border-primary);
+            --gdg-color: var(--fp-text-primary);
+            --gdg-text-dark: var(--fp-text-primary);
+            --gdg-text-medium: var(--fp-text-secondary);
+            --gdg-text-light: var(--fp-text-muted);
+            --gdg-accent-color: var(--fp-accent-blue);
+        }
+
+        [data-testid="stDataFrame"] canvas {
+            background: var(--fp-data-cell-bg) !important;
+        }
+
+        .stDataFrame [role="grid"],
+        .stDataFrame [role="columnheader"],
+        .stDataFrame [role="gridcell"] {
+            color: var(--fp-text-primary) !important;
+        }
+
+        .stDataFrame [role="columnheader"] {
+            background-color: var(--fp-data-header-bg) !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -485,7 +630,7 @@ def render_top_navigation(current_page: str) -> None:
                 st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
                 if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
-                    next_url = switch_dashboard(page_key, current_key=current_page)
+                    next_url = themed_url(switch_dashboard(page_key, current_key=current_page))
                     st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
                     st.stop()
 
@@ -506,15 +651,17 @@ def render() -> None:
     st.caption("Search by youth ID or name to review profile details, risk score, recommendations, and intake context.")
 
     render_top_navigation("profile_lookup")
+    render_theme_toggle()
 
     st.markdown(
-        """
+        f"""
         <div class="pl-shell">
-            <div class="pl-brandbar">
+            <div class="pl-brandbar fp-brand-header">
                 <div class="pl-brand-left">Future Path</div>
                 <div class="pl-brand-right">
                     <div><strong>Profile Lookup Workspace</strong></div>
                     <div>Review youth details and AI context</div>
+                    <div style="margin-top:8px;">{current_theme_badge_html()}</div>
                 </div>
             </div>
         </div>

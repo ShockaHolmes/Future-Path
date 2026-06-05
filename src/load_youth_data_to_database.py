@@ -192,6 +192,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
             description TEXT NOT NULL,
             referral_method TEXT NOT NULL,
             contact_phone TEXT NOT NULL,
+            contact_email TEXT NOT NULL DEFAULT '',
             website TEXT NOT NULL,
             ai_match_rules TEXT NOT NULL,
             default_priority TEXT NOT NULL,

@@ -16,6 +16,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
+from dashboard_theme import branded_palette, current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from candidate_promotion import load_promotable_candidate_intakes
 
 
@@ -474,42 +475,46 @@ def inject_overview_styles() -> None:
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        """
+        + theme_css_variables()
+        + theme_component_styles()
+        + """
 
         .stApp {
-            background: #f5f8fc;
-            color: #10223f;
+            background: var(--fp-app-background);
+            color: var(--fp-text-primary);
             font-family: 'Inter', sans-serif;
         }
 
         [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%) !important;
-            color: #16356c !important;
-            border-right: 1px solid #d9e5fb !important;
+            background: linear-gradient(180deg, var(--fp-sidebar-background) 0%, var(--fp-sidebar-background-alt) 100%) !important;
+            color: var(--fp-sidebar-text) !important;
+            border-right: 1px solid var(--fp-sidebar-border) !important;
         }
 
         [data-testid="stSidebar"] * {
-            color: #173775 !important;
+            color: var(--fp-sidebar-text) !important;
         }
 
         [data-testid="stSidebar"] div[data-baseweb="input"] > div,
         [data-testid="stSidebar"] div[data-baseweb="select"] > div,
         [data-testid="stSidebar"] div[data-baseweb="textarea"] > div {
-            background: #ffffff !important;
-            border: 1px solid #cfe0f5 !important;
-            color: #173775 !important;
+            background: var(--fp-input-background) !important;
+            border: 1px solid var(--fp-input-border) !important;
+            color: var(--fp-sidebar-text) !important;
         }
 
         [data-testid="stSidebar"] input,
         [data-testid="stSidebar"] textarea,
         [data-testid="stSidebar"] span {
-            color: #173775 !important;
+            color: var(--fp-sidebar-text) !important;
             opacity: 1 !important;
         }
 
         [data-testid="stSidebar"] .stButton > button {
-            background: #eef4ff !important;
-            color: #163b79 !important;
-            border: 1px solid #c9d8ef !important;
+            background: var(--fp-button-background) !important;
+            color: var(--fp-button-text) !important;
+            border: 1px solid var(--fp-button-border) !important;
         }
 
         .main .block-container {
@@ -523,10 +528,10 @@ def inject_overview_styles() -> None:
         .overview-side-panel,
         .overview-table-shell,
         .overview-strip {
-            border: 1px solid #d9e4f2;
+            border: 1px solid var(--fp-border-primary);
             border-radius: 18px;
-            background: #ffffff;
-            box-shadow: 0 10px 22px rgba(16, 34, 63, 0.04);
+            background: var(--fp-surface-primary);
+            box-shadow: 0 10px 22px var(--fp-shadow-soft);
             padding: 14px 16px;
         }
 
@@ -543,13 +548,13 @@ def inject_overview_styles() -> None:
             align-items: center;
             gap: 16px;
             padding: 18px 20px;
-            border-bottom: 1px solid #e5edf6;
+            border-bottom: 1px solid var(--fp-border-secondary);
         }
 
         .overview-title {
             font-size: 2rem;
             font-weight: 800;
-            color: #0c1f44;
+            color: var(--fp-heading);
             line-height: 1.1;
         }
 
@@ -562,7 +567,7 @@ def inject_overview_styles() -> None:
         }
 
         .overview-subtitle {
-            color: #324862;
+            color: var(--fp-text-secondary);
             font-size: 0.95rem;
             margin-top: 4px;
         }
@@ -570,18 +575,18 @@ def inject_overview_styles() -> None:
         .overview-badge {
             padding: 8px 12px;
             border-radius: 999px;
-            background: #eef5ff;
-            color: #234e97;
+            background: var(--fp-badge-background);
+            color: var(--fp-badge-text);
             font-weight: 700;
             font-size: 0.88rem;
         }
 
         .overview-kpi-card {
-            border: 1px solid #dce7f3;
+            border: 1px solid var(--fp-border-primary);
             border-radius: 16px;
-            background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+            background: linear-gradient(180deg, var(--fp-surface-primary) 0%, var(--fp-surface-secondary) 100%);
             padding: 14px 14px 12px 14px;
-            box-shadow: 0 8px 18px rgba(16, 34, 63, 0.04);
+            box-shadow: 0 8px 18px var(--fp-shadow-soft);
             min-height: 110px;
         }
 
@@ -597,8 +602,8 @@ def inject_overview_styles() -> None:
 
         .overview-kpi-card-link .overview-kpi-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 24px rgba(16, 34, 63, 0.08);
-            border-color: #b9cfee;
+            box-shadow: 0 12px 24px var(--fp-shadow-hover);
+            border-color: var(--fp-button-border);
         }
 
         .overview-kpi-card-link .overview-kpi-card::after {
@@ -608,53 +613,53 @@ def inject_overview_styles() -> None:
             right: 14px;
             font-size: 0.72rem;
             font-weight: 800;
-            color: #2a5aaa;
+            color: var(--fp-accent-blue);
             letter-spacing: 0.02em;
             text-transform: uppercase;
         }
 
         .overview-kpi-label {
-            color: #1f3f66;
+            color: var(--fp-text-secondary);
             font-size: 0.9rem;
             font-weight: 700;
             margin-bottom: 10px;
         }
 
         .overview-kpi-value {
-            color: #0c1f44;
+            color: var(--fp-heading);
             font-size: 2rem;
             font-weight: 800;
             line-height: 1;
         }
 
         .overview-kpi-footnote {
-            color: #42556f;
+            color: var(--fp-text-muted);
             font-size: 0.78rem;
             margin-top: 8px;
         }
 
         .overview-panel-title {
-            color: #0c1f44;
+            color: var(--fp-heading);
             font-size: 1rem;
             font-weight: 800;
             margin-bottom: 10px;
         }
 
         .overview-panel-caption {
-            color: #364a66;
+            color: var(--fp-text-secondary);
             font-size: 0.82rem;
             margin-top: 8px;
         }
 
         .overview-link {
-            color: #1d4f91;
+            color: var(--fp-accent-blue);
             font-weight: 700;
             font-size: 0.88rem;
             margin-top: 6px;
         }
 
         .overview-helper-text {
-            color: #38506f;
+            color: var(--fp-text-secondary);
             font-size: 0.88rem;
             font-weight: 600;
             margin-top: 0.1rem;
@@ -664,28 +669,28 @@ def inject_overview_styles() -> None:
         .main .stMultiSelect label,
         .main .stSelectbox label,
         .main .stRadio label {
-            color: #1d3773 !important;
+            color: var(--fp-text-secondary) !important;
             font-weight: 700 !important;
             opacity: 1 !important;
         }
 
         .main div[data-baseweb="input"] > div,
         .main div[data-baseweb="select"] > div {
-            background: #ffffff !important;
-            border: 1px solid #cfe0f5 !important;
-            color: #10223f !important;
+            background: var(--fp-input-background) !important;
+            border: 1px solid var(--fp-input-border) !important;
+            color: var(--fp-input-text) !important;
         }
 
         .main div[data-baseweb="input"] input,
         .main div[data-baseweb="select"] span {
-            color: #10223f !important;
+            color: var(--fp-input-text) !important;
             opacity: 1 !important;
         }
 
         .main .stButton > button {
-            background: #eef4ff !important;
-            color: #163b79 !important;
-            border: 1px solid #c9d8ef !important;
+            background: var(--fp-button-background) !important;
+            color: var(--fp-button-text) !important;
+            border: 1px solid var(--fp-button-border) !important;
             font-weight: 700 !important;
             box-shadow: none !important;
         }
@@ -695,32 +700,44 @@ def inject_overview_styles() -> None:
         }
 
         .main .stButton > button:hover {
-            background: #e6efff !important;
-            color: #112f63 !important;
+            background: var(--fp-button-hover) !important;
+            color: var(--fp-button-text) !important;
         }
 
         .stButton > button,
         .stButton > button[kind="secondary"],
         .stButton > button[kind="tertiary"] {
-            background: #eef4ff !important;
-            color: #163b79 !important;
-            border: 1px solid #c9d8ef !important;
+            background: var(--fp-button-background) !important;
+            color: var(--fp-button-text) !important;
+            border: 1px solid var(--fp-button-border) !important;
             box-shadow: none !important;
         }
 
         .stButton > button[kind="secondary"]:hover,
         .stButton > button[kind="tertiary"]:hover {
-            background: #e6efff !important;
-            color: #112f63 !important;
+            background: var(--fp-button-hover) !important;
+            color: var(--fp-button-text) !important;
+        }
+
+        .stButton > button[kind="primary"] {
+            background: var(--fp-button-primary-background) !important;
+            color: var(--fp-button-primary-text) !important;
+            border: 1px solid var(--fp-button-primary-border) !important;
+        }
+
+        .stButton > button[kind="primary"]:hover {
+            background: var(--fp-button-primary-hover) !important;
+            color: var(--fp-button-primary-text) !important;
+            border: 1px solid var(--fp-button-primary-border) !important;
         }
 
         .main div[data-baseweb="input"] > div,
         .main div[data-baseweb="select"] > div,
         .main div[data-baseweb="textarea"] > div,
         .main div[data-baseweb="base-input"] > div {
-            background: #ffffff !important;
-            border: 1px solid #cfe0f5 !important;
-            color: #10223f !important;
+            background: var(--fp-input-background) !important;
+            border: 1px solid var(--fp-input-border) !important;
+            color: var(--fp-input-text) !important;
         }
 
         .main div[data-baseweb="input"] input,
@@ -728,7 +745,7 @@ def inject_overview_styles() -> None:
         .main div[data-baseweb="textarea"] textarea,
         .main input,
         .main textarea {
-            color: #10223f !important;
+            color: var(--fp-input-text) !important;
             opacity: 1 !important;
         }
 
@@ -753,7 +770,7 @@ def inject_overview_styles() -> None:
             width: 64%;
             height: 64%;
             border-radius: 50%;
-            background: #ffffff;
+            background: var(--fp-chart-hole);
             position: absolute;
             top: 50%;
             left: 50%;
@@ -761,7 +778,7 @@ def inject_overview_styles() -> None:
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: inset 0 0 0 1px #e5edf6;
+            box-shadow: inset 0 0 0 1px var(--fp-border-secondary);
         }
 
         .pie-chart-legend {
@@ -776,7 +793,7 @@ def inject_overview_styles() -> None:
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            color: #0c1f44;
+            color: var(--fp-heading);
         }
 
         .pie-legend-left {
@@ -791,7 +808,7 @@ def inject_overview_styles() -> None:
             height: 10px;
             border-radius: 50%;
             flex: 0 0 10px;
-            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 0 3px var(--fp-surface-primary);
         }
 
         .pie-legend-label {
@@ -803,14 +820,14 @@ def inject_overview_styles() -> None:
         }
 
         .pie-legend-value {
-            color: #1e3553;
+            color: var(--fp-text-primary);
             font-size: 0.88rem;
             font-weight: 800;
             white-space: nowrap;
         }
 
         .pie-legend-value span {
-            color: #435a77;
+            color: var(--fp-text-muted);
             font-weight: 700;
         }
 
@@ -844,7 +861,7 @@ def inject_overview_styles() -> None:
         }
 
         .county-state-label {
-            color: #14284a;
+            color: var(--fp-heading);
             font-size: 0.92rem;
             font-weight: 800;
             letter-spacing: 0.01em;
@@ -865,19 +882,19 @@ def inject_overview_styles() -> None:
             gap: 12px;
             padding: 8px 10px;
             border-radius: 14px;
-            background: #f8fbff;
-            border: 1px solid #e1e9f6;
+            background: var(--fp-row-background);
+            border: 1px solid var(--fp-row-border);
         }
 
         .county-state-row-name {
-            color: #0c1f44;
+            color: var(--fp-heading);
             font-size: 0.94rem;
             font-weight: 800;
             line-height: 1.2;
         }
 
         .county-state-row-value {
-            color: #42556f;
+            color: var(--fp-text-muted);
             font-size: 0.8rem;
             margin-top: 2px;
         }
@@ -910,7 +927,7 @@ def inject_overview_styles() -> None:
         }
 
         .county-state-empty {
-            color: #42556f;
+            color: var(--fp-text-muted);
             font-size: 0.9rem;
             padding: 10px 0;
         }
@@ -930,9 +947,9 @@ def inject_overview_styles() -> None:
         .insight-card {
             border-radius: 16px;
             padding: 14px;
-            background: linear-gradient(180deg, #effaf3 0%, #e5f5ea 100%);
-            border: 1px solid #c7e5d0;
-            box-shadow: 0 8px 18px rgba(16, 34, 63, 0.04);
+            background: linear-gradient(180deg, var(--fp-success-background) 0%, var(--fp-success-background-alt) 100%);
+            border: 1px solid var(--fp-success-border);
+            box-shadow: 0 8px 18px var(--fp-shadow-soft);
             min-height: 132px;
         }
 
@@ -944,21 +961,21 @@ def inject_overview_styles() -> None:
             height: 28px;
             border-radius: 999px;
             margin-bottom: 12px;
-            background: #1d4f91;
-            color: #ffffff;
+            background: var(--fp-accent-blue);
+            color: var(--fp-surface-primary);
             font-size: 0.78rem;
             font-weight: 800;
         }
 
         .insight-card-text {
-            color: #153321;
+            color: var(--fp-text-primary);
             font-size: 0.96rem;
             font-weight: 600;
             line-height: 1.55;
         }
 
         .insight-card-empty {
-            color: #42556f;
+            color: var(--fp-text-muted);
             font-size: 0.9rem;
         }
 
@@ -969,7 +986,20 @@ def inject_overview_styles() -> None:
 
         .stDataFrame [role="gridcell"],
         .stDataFrame [role="columnheader"] {
-            color: #10223f !important;
+            color: var(--fp-text-primary) !important;
+        }
+
+        [data-testid="stDataFrame"] {
+            --gdg-bg-cell: var(--fp-data-cell-bg);
+            --gdg-bg-cell-medium: var(--fp-surface-secondary);
+            --gdg-bg-header: var(--fp-data-header-bg);
+            --gdg-bg-header-has-focus: var(--fp-data-header-focus-bg);
+            --gdg-border-color: var(--fp-border-primary);
+            --gdg-color: var(--fp-text-primary);
+            --gdg-text-dark: var(--fp-text-primary);
+            --gdg-text-medium: var(--fp-text-secondary);
+            --gdg-text-light: var(--fp-text-muted);
+            --gdg-accent-color: var(--fp-accent-blue);
         }
 
         @media (max-width: 1100px) {
@@ -1006,9 +1036,9 @@ def render_insight_cards(insights: list[str]) -> None:
         with rows[index % 2]:
             st.markdown(
                 f"""
-                <div style="border-radius:16px;padding:14px;background:linear-gradient(180deg,#effaf3 0%,#e5f5ea 100%);border:1px solid #c7e5d0;box-shadow:0 8px 18px rgba(16, 34, 63, 0.04);min-height:132px;">
-                    <div style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;margin-bottom:12px;background:#1d4f91;color:#ffffff;font-size:0.78rem;font-weight:800;">{index + 1}</div>
-                    <div style="color:#153321;font-size:0.96rem;font-weight:600;line-height:1.55;">{insight}</div>
+                <div class="insight-card">
+                    <div class="insight-card-index">{index + 1}</div>
+                    <div class="insight-card-text">{insight}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1030,7 +1060,7 @@ def render_top_navigation(current_page: str) -> None:
                 st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
                 if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
-                    next_url = switch_dashboard(page_key, current_key=current_page)
+                    next_url = themed_url(switch_dashboard(page_key, current_key=current_page))
                     st.markdown(
                         f'<meta http-equiv="refresh" content="0; url={next_url}">',
                         unsafe_allow_html=True,
@@ -1052,23 +1082,24 @@ def render() -> None:
         """,
         unsafe_allow_html=True,
     )
+    render_theme_toggle()
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Navigation")
     st.sidebar.button("Overview", use_container_width=True, disabled=True, key="sidebar_overview_disabled")
     if st.sidebar.button("Youth Dashboard", use_container_width=True, key="sidebar_switch_youth"):
-        next_url = switch_dashboard("youth_dashboard", current_key="overview")
+        next_url = themed_url(switch_dashboard("youth_dashboard", current_key="overview"))
         st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
         st.stop()
     if st.sidebar.button("Youth Profiles", use_container_width=True, key="sidebar_switch_profile"):
-        next_url = switch_dashboard("profile_lookup", current_key="overview")
+        next_url = themed_url(switch_dashboard("profile_lookup", current_key="overview"))
         st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
         st.stop()
     if st.sidebar.button("AI Assistant", use_container_width=True, key="sidebar_switch_ai"):
-        next_url = switch_dashboard("ai_assistant", current_key="overview")
+        next_url = themed_url(switch_dashboard("ai_assistant", current_key="overview"))
         st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
         st.stop()
     if st.sidebar.button("Caseworker Dashboard", use_container_width=True, key="sidebar_switch_caseworker"):
-        next_url = switch_dashboard("caseworker_dashboard", current_key="overview")
+        next_url = themed_url(switch_dashboard("caseworker_dashboard", current_key="overview"))
         st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
         st.stop()
 
@@ -1088,12 +1119,15 @@ def render() -> None:
     st.markdown(
         f"""
         <div class="overview-shell">
-            <div class="overview-header">
+            <div class="overview-header fp-brand-header">
                 <div>
                     {header_logo_html}
                     <div class="overview-subtitle">Youth Transition Support Dashboard</div>
                 </div>
-                <div class="overview-badge">Overview</div>
+                <div class="fp-header-meta">
+                    <div class="overview-badge">Overview</div>
+                    {current_theme_badge_html()}
+                </div>
             </div>
         </div>
         """,
@@ -1103,7 +1137,7 @@ def render() -> None:
     launch_col1, launch_col2 = st.columns([1.1, 2.4])
     with launch_col1:
         if st.button("Open Youth Dashboard", type="primary", use_container_width=True, key="overview_launch_youth"):
-            next_url = switch_dashboard("youth_dashboard", current_key="overview")
+            next_url = themed_url(switch_dashboard("youth_dashboard", current_key="overview"))
             st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
             st.stop()
     with launch_col2:
@@ -1225,7 +1259,7 @@ def render() -> None:
             label_column="risk_level",
             value_column="case_count",
             title="Risk Score Breakdown",
-            colors=["#d7263d", "#f4a261", "#4f9d69", "#90a4ae"],
+            colors=branded_palette("risk"),
         )
         st.markdown('<div class="overview-panel-caption">Based on the latest available risk assessment data.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1238,7 +1272,7 @@ def render() -> None:
                 label_column="label",
                 value_column="count",
                 title="Housing Status",
-                colors=["#1d4ed8", "#38bdf8", "#7c3aed", "#f59e0b", "#10b981", "#ef4444"],
+                colors=branded_palette("housing"),
             )
             st.markdown('</div>', unsafe_allow_html=True)
         with chart_grid_right:
@@ -1248,7 +1282,7 @@ def render() -> None:
                 label_column="label",
                 value_column="count",
                 title="Employment Status",
-                colors=["#0f766e", "#14b8a6", "#f97316", "#8b5cf6", "#ef4444", "#22c55e"],
+                colors=branded_palette("employment"),
             )
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1258,7 +1292,7 @@ def render() -> None:
             label_column="label",
             value_column="count",
             title="Education Status",
-            colors=["#2563eb", "#06b6d4", "#8b5cf6", "#f59e0b", "#ef4444", "#10b981"],
+            colors=branded_palette("education"),
         )
         st.markdown('<div class="overview-panel-caption">Shows where youth are in the education pathway.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1270,7 +1304,7 @@ def render() -> None:
             label_column="county",
             value_column="need_index",
             title="Delaware County Insights",
-            colors=["#7c3aed", "#2563eb", "#14b8a6", "#f59e0b", "#ef4444", "#22c55e"],
+            colors=branded_palette("county"),
         )
         render_state_visual(county_needs_df)
         st.markdown('<div class="overview-panel-caption">Need Index combines high-risk, unstable housing, and unemployment signals.</div>', unsafe_allow_html=True)

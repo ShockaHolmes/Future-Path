@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import sys
 from datetime import UTC, date, datetime
+from html import escape
 from pathlib import Path
 from uuid import uuid4
 
@@ -16,6 +17,7 @@ if str(SRC_PATH) not in sys.path:
 
 from assign_resources_from_intake import assign_resources_from_intake, ensure_assigned_resources_table_integrity
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
+from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from future_path_ai_intake import QUESTIONS, infer_summary_needs, resolve_profile_link, save_answer
 from future_path_ai_intake import ensure_intake_tables as ensure_intake_tables_base
 
@@ -34,6 +36,13 @@ def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
         (table_name,),
     ).fetchone()
     return row is not None
+
+
+def table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:
+    if not table_exists(connection, table_name):
+        return set()
+    rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return {str(row[1]) for row in rows}
 
 
 def ensure_youth_portal_tables(connection: sqlite3.Connection) -> None:
@@ -101,7 +110,7 @@ def render_top_navigation(current_page: str) -> None:
                 st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
                 if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
-                    next_url = switch_dashboard(page_key, current_key=current_page)
+                    next_url = themed_url(switch_dashboard(page_key, current_key=current_page))
                     st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
                     st.stop()
 
@@ -111,6 +120,10 @@ def inject_styles() -> None:
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+        """
+        + theme_css_variables()
+        + theme_component_styles()
+        + """
 
         .stApp {
             background: linear-gradient(180deg, #f8fbff 0%, #f3f7ff 100%);
@@ -155,6 +168,10 @@ def inject_styles() -> None:
             background: #ffffff;
             padding: 14px 16px;
             margin: 0.8rem 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
         }
 
         .youth-title {
@@ -169,6 +186,10 @@ def inject_styles() -> None:
             color: #244780;
             font-size: 0.96rem;
             margin-top: 6px;
+        }
+
+        .youth-header-copy {
+            min-width: 0;
         }
 
         .youth-section-card {
@@ -265,6 +286,111 @@ def inject_styles() -> None:
         [data-testid='stDataFrame'] [role='columnheader'],
         [data-testid='stDataFrame'] [role='gridcell'] {
             color: #102a78 !important;
+        }
+
+        .stApp {
+            background: linear-gradient(180deg, var(--fp-app-background) 0%, var(--fp-app-background-alt) 100%);
+            color: var(--fp-text-primary);
+        }
+
+        [data-testid='stSidebar'] {
+            background: linear-gradient(180deg, var(--fp-sidebar-background) 0%, var(--fp-sidebar-background-alt) 100%) !important;
+            color: var(--fp-sidebar-text) !important;
+            border-right: 1px solid var(--fp-sidebar-border) !important;
+        }
+
+        [data-testid='stSidebar'] *,
+        [data-testid='stSidebar'] input,
+        [data-testid='stSidebar'] textarea,
+        [data-testid='stSidebar'] span {
+            color: var(--fp-sidebar-text) !important;
+        }
+
+        [data-testid='stSidebar'] div[data-baseweb='input'] > div,
+        [data-testid='stSidebar'] div[data-baseweb='select'] > div,
+        [data-testid='stSidebar'] div[data-baseweb='textarea'] > div {
+            background: var(--fp-input-background) !important;
+            border: 1px solid var(--fp-input-border) !important;
+            color: var(--fp-input-text) !important;
+        }
+
+        .youth-header,
+        .youth-section-card,
+        .youth-kpi {
+            border-color: var(--fp-border-primary) !important;
+        }
+
+        .youth-header,
+        .youth-section-card {
+            background: var(--fp-surface-primary) !important;
+        }
+
+        .youth-kpi {
+            background: var(--fp-surface-secondary) !important;
+        }
+
+        .youth-title,
+        .youth-kpi-value {
+            color: var(--fp-heading) !important;
+        }
+
+        .youth-subtitle,
+        .youth-kpi-label,
+        .stSelectbox label,
+        .stTextInput label,
+        .stTextArea label,
+        .stRadio label,
+        .stCaption,
+        .stMarkdown p,
+        .stMarkdown li {
+            color: var(--fp-text-secondary) !important;
+        }
+
+        .status-recommended { background: var(--fp-button-background) !important; color: var(--fp-accent-blue) !important; border: 1px solid var(--fp-button-border) !important; }
+        .status-assigned { background: var(--fp-success-background) !important; color: var(--fp-success-text) !important; border: 1px solid var(--fp-success-border) !important; }
+        .status-contacted { background: var(--fp-warning-background) !important; color: var(--fp-warning-text) !important; border: 1px solid var(--fp-warning-border) !important; }
+        .status-completed { background: var(--fp-success-background-alt) !important; color: var(--fp-success-text) !important; border: 1px solid var(--fp-success-border) !important; }
+
+        [data-testid='stRadio'] [role='radiogroup'] label p,
+        [data-testid='stRadio'] [role='radiogroup'] label span,
+        [data-baseweb='radio'] label,
+        [data-baseweb='radio'] label p,
+        [data-baseweb='radio'] label span {
+            color: var(--fp-heading) !important;
+        }
+
+        [data-testid='stRadio'] [role='radiogroup'] label:hover,
+        [data-baseweb='radio'] label:hover {
+            background: var(--fp-surface-secondary) !important;
+        }
+
+        [data-baseweb='radio'] input:checked + div,
+        [data-testid='stRadio'] input:checked + div {
+            border-color: var(--fp-button-primary-border) !important;
+            box-shadow: inset 0 0 0 4px var(--fp-button-primary-border) !important;
+        }
+
+        .stButton > button {
+            border: 1px solid var(--fp-button-border) !important;
+            background: var(--fp-button-background) !important;
+            color: var(--fp-button-text) !important;
+        }
+
+        .stButton > button[kind='primary'] {
+            background: var(--fp-button-primary-background) !important;
+            color: var(--fp-button-primary-text) !important;
+            border-color: var(--fp-button-primary-border) !important;
+        }
+
+        [data-testid='stDataFrame'] [role='columnheader'],
+        [data-testid='stDataFrame'] [role='gridcell'] {
+            color: var(--fp-text-primary) !important;
+        }
+
+        @media (max-width: 720px) {
+            .youth-header {
+                flex-direction: column;
+            }
         }
         </style>
         """,
@@ -391,12 +517,19 @@ def load_assigned_resources(connection: sqlite3.Connection, youth_id: str) -> pd
 
     has_resources = table_exists(connection, "resources")
     if has_resources:
+        resource_columns = table_columns(connection, "resources")
+        contact_phone_expr = "COALESCE(r.contact_phone, '')" if "contact_phone" in resource_columns else "''"
+        contact_email_expr = "COALESCE(r.contact_email, '')" if "contact_email" in resource_columns else "''"
+        website_expr = "COALESCE(r.website, '')" if "website" in resource_columns else "''"
         query = """
             SELECT
                 ar.resource_id,
                 COALESCE(r.resource_name, ar.resource_id) AS resource_name,
                 COALESCE(r.category, 'General Support') AS category,
                 COALESCE(r.referral_method, 'Contact your caseworker for referral instructions') AS referral_method,
+                {contact_phone_expr} AS contact_phone,
+                {contact_email_expr} AS contact_email,
+                {website_expr} AS website,
                 ar.priority_level,
                 COALESCE(ar.match_score, 0.0) AS match_score,
                 COALESCE(ar.match_reason, '') AS reason,
@@ -408,7 +541,11 @@ def load_assigned_resources(connection: sqlite3.Connection, youth_id: str) -> pd
             WHERE ar.youth_id = ?
             ORDER BY COALESCE(ar.assigned_at, '') DESC, ar.assignment_id DESC
             LIMIT 30
-        """
+        """.format(
+            contact_phone_expr=contact_phone_expr,
+            contact_email_expr=contact_email_expr,
+            website_expr=website_expr,
+        )
     else:
         query = """
             SELECT
@@ -416,6 +553,9 @@ def load_assigned_resources(connection: sqlite3.Connection, youth_id: str) -> pd
                 resource_id AS resource_name,
                 'General Support' AS category,
                 'Contact your caseworker for referral instructions' AS referral_method,
+                '' AS contact_phone,
+                '' AS contact_email,
+                '' AS website,
                 priority_level,
                 COALESCE(match_score, 0.0) AS match_score,
                 COALESCE(match_reason, '') AS reason,
@@ -638,6 +778,36 @@ def status_chip_class(status: str) -> str:
     return "status-recommended"
 
 
+def _is_contact_value(value: object) -> bool:
+    normalized = str(value or "").strip()
+    return normalized != "" and normalized.lower() not in {"not listed", "n/a", "na", "none", "null"}
+
+
+def resource_contact_html(phone: object, email: object, website: object) -> str:
+    segments: list[str] = []
+
+    phone_text = str(phone or "").strip()
+    if _is_contact_value(phone_text):
+        phone_href = "".join(char for char in phone_text if char.isdigit() or char == "+")
+        if phone_href:
+            segments.append(f'Phone: <a href="tel:{escape(phone_href)}">{escape(phone_text)}</a>')
+        else:
+            segments.append(f"Phone: {escape(phone_text)}")
+
+    email_text = str(email or "").strip()
+    if _is_contact_value(email_text):
+        segments.append(f'Email: <a href="mailto:{escape(email_text)}">{escape(email_text)}</a>')
+
+    website_text = str(website or "").strip()
+    if _is_contact_value(website_text):
+        website_href = website_text if website_text.startswith(("http://", "https://")) else f"https://{website_text}"
+        segments.append(f'Website: <a href="{escape(website_href)}" target="_blank">{escape(website_text)}</a>')
+
+    if not segments:
+        return "Contact: Ask your caseworker for current contact details."
+    return " | ".join(segments)
+
+
 def format_question_option_label(question_key: str, value: str) -> str:
     mapping = {
         "housing_status": {
@@ -813,14 +983,18 @@ def render() -> None:
     ensure_single_dashboard("youth_dashboard")
     initialize_state()
     inject_styles()
+    render_theme_toggle()
 
     render_top_navigation("youth_dashboard")
 
     st.markdown(
-        """
-        <div class="youth-header">
-            <div class="youth-title">Welcome to Future Path</div>
-            <div class="youth-subtitle">Complete your intake, track your support plan, and stay connected with your caseworker.</div>
+        f"""
+        <div class="youth-header fp-brand-header">
+            <div class="youth-header-copy">
+                <div class="youth-title">Welcome to Future Path</div>
+                <div class="youth-subtitle">Complete your intake, track your support plan, and stay connected with your caseworker.</div>
+            </div>
+            <div class="fp-header-meta">{current_theme_badge_html()}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -982,14 +1156,15 @@ def render() -> None:
                 next_step = f"{row['referral_method']}{follow_up_text}."
                 st.markdown(
                     f"""
-                    <div style="border:1px solid #dce7ff;border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#fff;">
+                    <div style="border:1px solid var(--fp-border-primary);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:var(--fp-surface-primary);">
                         <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
-                            <div style="font-weight:800;color:#12367f;">{row['resource_name']}</div>
+                            <div style="font-weight:800;color:var(--fp-heading);">{row['resource_name']}</div>
                             <span class="youth-resource-chip {chip_class}">{status}</span>
                         </div>
-                        <div style="color:#304f88;font-size:0.9rem;margin-top:4px;">Category: {row['category']} | Priority: {row['priority_level']} | Match score: {float(row['match_score']):.1f}</div>
-                        <div style="color:#1f3f7e;font-size:0.9rem;margin-top:6px;">Why this was assigned: {row['reason'] or 'Matched to your intake needs.'}</div>
-                        <div style="color:#1f3f7e;font-size:0.9rem;margin-top:6px;"><strong>Next Step:</strong> {next_step}</div>
+                        <div style="color:var(--fp-text-secondary);font-size:0.9rem;margin-top:4px;">Category: {row['category']} | Priority: {row['priority_level']} | Match score: {float(row['match_score']):.1f}</div>
+                        <div style="color:var(--fp-text-secondary);font-size:0.9rem;margin-top:6px;">Why this was assigned: {row['reason'] or 'Matched to your intake needs.'}</div>
+                        <div style="color:var(--fp-text-secondary);font-size:0.9rem;margin-top:6px;">{resource_contact_html(row.get('contact_phone', ''), row.get('contact_email', ''), row.get('website', ''))}</div>
+                        <div style="color:var(--fp-text-secondary);font-size:0.9rem;margin-top:6px;"><strong>Next Step:</strong> {next_step}</div>
                     </div>
                     """,
                     unsafe_allow_html=True,

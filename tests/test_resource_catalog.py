@@ -88,6 +88,7 @@ def test_clean_resource_catalog_standardizes_and_filters_rows() -> None:
         "description",
         "referral_method",
         "contact_phone",
+        "contact_email",
         "website",
         "ai_match_rules",
         "default_priority",

@@ -20,6 +20,28 @@ STRING_COLUMNS = [
     "description",
     "referral_method",
     "contact_phone",
+    "contact_email",
+    "website",
+    "ai_match_rules",
+    "default_priority",
+    "caseworker_notes",
+]
+
+OUTPUT_COLUMNS = [
+    "resource_id",
+    "resource_name",
+    "category",
+    "need_tags",
+    "service_area",
+    "county",
+    "city",
+    "state",
+    "eligibility_age_min",
+    "eligibility_age_max",
+    "description",
+    "referral_method",
+    "contact_phone",
+    "contact_email",
     "website",
     "ai_match_rules",
     "default_priority",
@@ -31,6 +53,9 @@ AGE_MAX_COLUMN = "eligibility_age_max"
 DEFAULT_PRIORITY = "Medium"
 DEFAULT_STATE = "DE"
 MAX_REASONABLE_AGE = 99
+DEFAULT_RESOURCE_INPUT = Path("data/raw/future_path_delaware_youth_resources_enriched_contacts.csv")
+if not DEFAULT_RESOURCE_INPUT.exists():
+    DEFAULT_RESOURCE_INPUT = Path("data/raw/future_path_delaware_youth_resources.csv")
 
 
 def remove_duplicates(frame: pd.DataFrame) -> pd.DataFrame:
@@ -54,6 +79,12 @@ def handle_missing_values(frame: pd.DataFrame) -> pd.DataFrame:
     if "contact_phone" in cleaned.columns:
         cleaned.loc[cleaned["contact_phone"] == "", "contact_phone"] = "Not listed"
 
+    if "contact_email" in cleaned.columns:
+        cleaned.loc[cleaned["contact_email"] == "", "contact_email"] = "Not listed"
+
+    if "website" in cleaned.columns:
+        cleaned.loc[cleaned["website"] == "", "website"] = "Not listed"
+
     for column in [AGE_MIN_COLUMN, AGE_MAX_COLUMN]:
         cleaned[column] = pd.to_numeric(cleaned[column], errors="coerce")
 
@@ -76,6 +107,7 @@ def validate_rows(frame: pd.DataFrame) -> pd.DataFrame:
 
 def clean_data(frame: pd.DataFrame) -> pd.DataFrame:
     cleaned = standardize_columns(frame)
+    cleaned = cleaned.reindex(columns=OUTPUT_COLUMNS, fill_value="")
     cleaned = remove_duplicates(cleaned)
     cleaned = handle_missing_values(cleaned)
     cleaned = validate_rows(cleaned)
@@ -87,7 +119,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path("data/raw/future_path_delaware_youth_resources.csv"),
+        default=DEFAULT_RESOURCE_INPUT,
         help="Path to the raw youth resource catalog CSV.",
     )
     parser.add_argument(

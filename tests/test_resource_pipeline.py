@@ -79,6 +79,7 @@ def test_clean_resource_catalog_standardizes_defaults_and_filters_invalid_rows()
     assert cleaned.loc[0, "state"] == "DE"
     assert cleaned.loc[0, "default_priority"] == "Medium"
     assert cleaned.loc[0, "contact_phone"] == "Not listed"
+    assert cleaned.loc[0, "contact_email"] == "Not listed"
     assert cleaned.loc[0, "eligibility_age_min"] == 0
     assert cleaned.loc[0, "eligibility_age_max"] == 99
 

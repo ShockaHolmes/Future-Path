@@ -35,6 +35,9 @@ class ResourceCandidate(TypedDict):
     resource_name: str
     match_score: float
     match_reasons: list[str]
+    contact_phone: str
+    contact_email: str
+    website: str
 
 
 class ResourceMatch(TypedDict):
@@ -43,6 +46,9 @@ class ResourceMatch(TypedDict):
     match_score: float
     priority_level: str
     match_reason: str
+    contact_phone: str
+    contact_email: str
+    website: str
 
 
 class AssignmentResult(TypedDict):
@@ -99,16 +105,25 @@ def ensure_resources_table_populated(connection: sqlite3.Connection) -> None:
     if not _table_exists(connection, "resources"):
         raise ValueError("Missing resources table. Apply relational schema before assigning resources.")
 
+    resource_columns = _table_columns(connection, "resources")
+    if "contact_email" not in resource_columns:
+        connection.execute("ALTER TABLE resources ADD COLUMN contact_email TEXT")
+
     resources_count = connection.execute("SELECT COUNT(*) FROM resources").fetchone()[0]
-    if resources_count > 0:
+    if resources_count > 0 and not _table_exists(connection, "youth_resources"):
         return
 
     if not _table_exists(connection, "youth_resources"):
         raise ValueError("No resources data found. Load resources before assigning from intake.")
 
+    youth_resource_columns = _table_columns(connection, "youth_resources")
+    contact_phone_expr = "COALESCE(contact_phone, '')" if "contact_phone" in youth_resource_columns else "''"
+    contact_email_expr = "COALESCE(contact_email, '')" if "contact_email" in youth_resource_columns else "''"
+    website_expr = "COALESCE(website, '')" if "website" in youth_resource_columns else "''"
+
     connection.execute(
-        """
-        INSERT INTO resources (
+        f"""
+        INSERT OR IGNORE INTO resources (
             resource_id,
             resource_name,
             category,
@@ -122,6 +137,7 @@ def ensure_resources_table_populated(connection: sqlite3.Connection) -> None:
             description,
             referral_method,
             contact_phone,
+            contact_email,
             website,
             ai_match_rules,
             default_priority,
@@ -140,12 +156,54 @@ def ensure_resources_table_populated(connection: sqlite3.Connection) -> None:
             eligibility_age_max,
             description,
             referral_method,
-            contact_phone,
-            website,
+            {contact_phone_expr},
+            {contact_email_expr},
+            {website_expr},
             ai_match_rules,
             default_priority,
             caseworker_notes
         FROM youth_resources
+        """
+    )
+
+    contact_phone_update_expr = (
+        "COALESCE((SELECT y.contact_phone FROM youth_resources y WHERE y.resource_id = resources.resource_id), '')"
+        if "contact_phone" in youth_resource_columns
+        else "''"
+    )
+    contact_email_update_expr = (
+        "COALESCE((SELECT y.contact_email FROM youth_resources y WHERE y.resource_id = resources.resource_id), '')"
+        if "contact_email" in youth_resource_columns
+        else "''"
+    )
+    website_update_expr = (
+        "COALESCE((SELECT y.website FROM youth_resources y WHERE y.resource_id = resources.resource_id), '')"
+        if "website" in youth_resource_columns
+        else "''"
+    )
+
+    connection.execute(
+        f"""
+        UPDATE resources
+        SET
+            resource_name = COALESCE((SELECT y.resource_name FROM youth_resources y WHERE y.resource_id = resources.resource_id), resource_name),
+            category = COALESCE((SELECT y.category FROM youth_resources y WHERE y.resource_id = resources.resource_id), category),
+            need_tags = COALESCE((SELECT y.need_tags FROM youth_resources y WHERE y.resource_id = resources.resource_id), need_tags),
+            service_area = COALESCE((SELECT y.service_area FROM youth_resources y WHERE y.resource_id = resources.resource_id), service_area),
+            county = COALESCE((SELECT y.county FROM youth_resources y WHERE y.resource_id = resources.resource_id), county),
+            city = COALESCE((SELECT y.city FROM youth_resources y WHERE y.resource_id = resources.resource_id), city),
+            state = COALESCE((SELECT y.state FROM youth_resources y WHERE y.resource_id = resources.resource_id), state),
+            eligibility_age_min = COALESCE((SELECT y.eligibility_age_min FROM youth_resources y WHERE y.resource_id = resources.resource_id), eligibility_age_min),
+            eligibility_age_max = COALESCE((SELECT y.eligibility_age_max FROM youth_resources y WHERE y.resource_id = resources.resource_id), eligibility_age_max),
+            description = COALESCE((SELECT y.description FROM youth_resources y WHERE y.resource_id = resources.resource_id), description),
+            referral_method = COALESCE((SELECT y.referral_method FROM youth_resources y WHERE y.resource_id = resources.resource_id), referral_method),
+            contact_phone = {contact_phone_update_expr},
+            contact_email = {contact_email_update_expr},
+            website = {website_update_expr},
+            ai_match_rules = COALESCE((SELECT y.ai_match_rules FROM youth_resources y WHERE y.resource_id = resources.resource_id), ai_match_rules),
+            default_priority = COALESCE((SELECT y.default_priority FROM youth_resources y WHERE y.resource_id = resources.resource_id), default_priority),
+            caseworker_notes = COALESCE((SELECT y.caseworker_notes FROM youth_resources y WHERE y.resource_id = resources.resource_id), caseworker_notes)
+        WHERE EXISTS (SELECT 1 FROM youth_resources y WHERE y.resource_id = resources.resource_id)
         """
     )
 
@@ -458,6 +516,9 @@ def _match_resources(
                     "resource_name": str(resource["resource_name"]),
                     "match_score": score,
                     "match_reasons": [match_reason],
+                    "contact_phone": str(resource["contact_phone"] or "").strip(),
+                    "contact_email": str(resource["contact_email"] or "").strip(),
+                    "website": str(resource["website"] or "").strip(),
                 }
             else:
                 by_resource[resource_id]["match_score"] = by_resource[resource_id]["match_score"] + score
@@ -476,6 +537,9 @@ def _match_resources(
                 "match_score": score,
                 "priority_level": _priority_from_score(score),
                 "match_reason": " | ".join(row["match_reasons"]),
+                "contact_phone": row["contact_phone"],
+                "contact_email": row["contact_email"],
+                "website": row["website"],
             }
         )
 
@@ -518,8 +582,19 @@ def assign_resources_from_intake(
     age, county = _load_profile_context(connection, youth_id)
 
     resources = connection.execute(
-        """
-        SELECT resource_id, resource_name, need_tags, county, service_area, eligibility_age_min, eligibility_age_max, default_priority
+        f"""
+        SELECT
+            resource_id,
+            resource_name,
+            need_tags,
+            county,
+            service_area,
+            eligibility_age_min,
+            eligibility_age_max,
+            default_priority,
+            {"COALESCE(contact_phone, '')" if "contact_phone" in _table_columns(connection, "resources") else "''"} AS contact_phone,
+            {"COALESCE(contact_email, '')" if "contact_email" in _table_columns(connection, "resources") else "''"} AS contact_email,
+            {"COALESCE(website, '')" if "website" in _table_columns(connection, "resources") else "''"} AS website
         FROM resources
         """
     ).fetchall()

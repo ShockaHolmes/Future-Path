@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import sys
 from datetime import UTC, datetime
+from html import escape
 from pathlib import Path
 from uuid import uuid4
 
@@ -16,6 +17,7 @@ if str(SRC_PATH) not in sys.path:
 
 from assign_resources_from_intake import AssignmentResult, assign_resources_from_intake
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
+from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from future_path_ai_intake import QUESTIONS, infer_summary_needs, resolve_profile_link, save_answer
 from future_path_ai_intake import ensure_intake_tables as ensure_intake_tables_base
 
@@ -94,9 +96,39 @@ def render_top_navigation(current_page: str) -> None:
                 st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
                 if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
-                    next_url = switch_dashboard(page_key, current_key=current_page)
+                    next_url = themed_url(switch_dashboard(page_key, current_key=current_page))
                     st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
                     st.stop()
+
+
+def _is_contact_value(value: object) -> bool:
+    normalized = str(value or "").strip()
+    return normalized != "" and normalized.lower() not in {"not listed", "n/a", "na", "none", "null"}
+
+
+def resource_contact_html(phone: object, email: object, website: object) -> str:
+    segments: list[str] = []
+
+    phone_text = str(phone or "").strip()
+    if _is_contact_value(phone_text):
+        phone_href = "".join(char for char in phone_text if char.isdigit() or char == "+")
+        if phone_href:
+            segments.append(f'Phone: <a href="tel:{escape(phone_href)}">{escape(phone_text)}</a>')
+        else:
+            segments.append(f"Phone: {escape(phone_text)}")
+
+    email_text = str(email or "").strip()
+    if _is_contact_value(email_text):
+        segments.append(f'Email: <a href="mailto:{escape(email_text)}">{escape(email_text)}</a>')
+
+    website_text = str(website or "").strip()
+    if _is_contact_value(website_text):
+        website_href = website_text if website_text.startswith(("http://", "https://")) else f"https://{website_text}"
+        segments.append(f'Website: <a href="{escape(website_href)}" target="_blank">{escape(website_text)}</a>')
+
+    if not segments:
+        return "Contact: Ask your caseworker for current contact details."
+    return " | ".join(segments)
 
 
 def inject_ai_assistant_styles() -> None:
@@ -104,6 +136,10 @@ def inject_ai_assistant_styles() -> None:
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+        """
+        + theme_css_variables()
+        + theme_component_styles()
+        + """
 
         .stApp {
             background:
@@ -554,6 +590,151 @@ def inject_ai_assistant_styles() -> None:
         .stProgress > div > div > div > div {
             background-color: #1f9fb0 !important;
         }
+
+        .stApp {
+            background:
+                radial-gradient(circle at 8% 4%, var(--fp-app-overlay-primary) 0%, rgba(17, 98, 220, 0.0) 34%),
+                linear-gradient(180deg, var(--fp-app-background) 0%, var(--fp-app-background-alt) 100%);
+            color: var(--fp-text-primary);
+        }
+
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, var(--fp-sidebar-background) 0%, var(--fp-sidebar-background-alt) 100%) !important;
+            color: var(--fp-sidebar-text) !important;
+            border-right: 1px solid var(--fp-sidebar-border) !important;
+        }
+
+        [data-testid="stSidebar"] * {
+            color: var(--fp-sidebar-text) !important;
+        }
+
+        [data-testid="stSidebar"] div[data-baseweb="input"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="select"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="textarea"] > div {
+            background: var(--fp-input-background) !important;
+            border: 1px solid var(--fp-input-border) !important;
+            color: var(--fp-input-text) !important;
+        }
+
+        [data-testid="stSidebar"] input,
+        [data-testid="stSidebar"] textarea,
+        [data-testid="stSidebar"] span {
+            color: var(--fp-input-text) !important;
+        }
+
+        h1, h2, h3, h4,
+        .ai-step-title,
+        .ai-header-title,
+        .ai-question,
+        .ai-summary-value,
+        .ai-resource-title {
+            color: var(--fp-heading) !important;
+        }
+
+        .ai-step-banner,
+        .ai-header-card,
+        .ai-section-card,
+        .ai-question-shell,
+        .ai-summary-card,
+        .ai-summary-metric,
+        .ai-resource-row,
+        .assist-resource-row,
+        .assist-chat-strip {
+            border-color: var(--fp-border-primary) !important;
+        }
+
+        .ai-step-banner {
+            background: linear-gradient(180deg, var(--fp-surface-tertiary) 0%, var(--fp-surface-secondary) 100%) !important;
+        }
+
+        .ai-header-card,
+        .ai-section-card,
+        .ai-summary-card,
+        .ai-resource-row,
+        .assist-resource-row,
+        .assist-chat-strip {
+            background: var(--fp-surface-primary) !important;
+        }
+
+        .ai-question-shell,
+        .ai-summary-metric {
+            background: linear-gradient(180deg, var(--fp-surface-primary) 0%, var(--fp-surface-secondary) 100%) !important;
+            box-shadow: 0 10px 22px var(--fp-shadow-soft) !important;
+        }
+
+        .ai-kicker,
+        .ai-question-lead,
+        .ai-resource-meta,
+        .assist-resource-row .assist-resource-desc,
+        .assist-chat-strip,
+        .ai-summary-label,
+        .stSelectbox label,
+        .stMultiSelect label,
+        .stDateInput label,
+        .stTextInput label,
+        .stTextArea label,
+        .stCheckbox label,
+        .stNumberInput label,
+        .stRadio label,
+        .stMarkdown p,
+        .stMarkdown li,
+        .stCaption {
+            color: var(--fp-text-secondary) !important;
+        }
+
+        .ai-selection-indicator {
+            border-color: var(--fp-success-border) !important;
+            background: linear-gradient(180deg, var(--fp-success-background) 0%, var(--fp-success-background-alt) 100%) !important;
+            color: var(--fp-success-text) !important;
+        }
+
+        .ai-selection-check {
+            background: var(--fp-success-text) !important;
+            color: var(--fp-surface-primary) !important;
+        }
+
+        .ai-need-chip {
+            color: var(--fp-button-primary-text) !important;
+            background: var(--fp-button-primary-background) !important;
+            border-color: var(--fp-button-primary-border) !important;
+        }
+
+        .ai-risk-chip {
+            color: var(--fp-danger-text) !important;
+            background: var(--fp-danger-background) !important;
+            border-color: var(--fp-danger-border) !important;
+        }
+
+        .ai-option-badge {
+            background: var(--fp-accent-blue-soft) !important;
+            color: var(--fp-accent-blue) !important;
+        }
+
+        .ai-option-grid div[data-testid="stButton"] > button,
+        .stButton > button,
+        .assist-footer-actions .stButton > button {
+            background: var(--fp-button-background) !important;
+            color: var(--fp-button-text) !important;
+            border-color: var(--fp-button-border) !important;
+        }
+
+        .ai-option-grid div[data-testid="stButton"] > button:hover,
+        .stButton > button:hover,
+        .assist-footer-actions .stButton > button:hover {
+            background: var(--fp-button-hover) !important;
+            color: var(--fp-button-text) !important;
+        }
+
+        .ai-option-grid div[data-testid="stButton"] > button[kind="primary"],
+        .stButton > button[kind="primary"] {
+            background: linear-gradient(180deg, var(--fp-button-primary-background) 0%, var(--fp-button-primary-hover) 100%) !important;
+            color: var(--fp-button-primary-text) !important;
+            border-color: var(--fp-button-primary-border) !important;
+        }
+
+        .stProgress > div > div > div > div {
+            background-color: var(--fp-accent-teal) !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -855,8 +1036,8 @@ def render_progress() -> None:
             <span>Question {min(current_index + 1, total)} of {total}</span>
             <span>{percent}%</span>
         </div>
-        <div style="height:8px;border-radius:999px;background:#d7dfef;overflow:hidden;">
-            <div style="height:100%;width:{max(percent, 2)}%;background:linear-gradient(90deg,#0e7f94 0%,#2496aa 100%);border-radius:inherit;"></div>
+        <div style="height:8px;border-radius:999px;background:var(--fp-border-secondary);overflow:hidden;">
+            <div style="height:100%;width:{max(percent, 2)}%;background:linear-gradient(90deg,var(--fp-button-primary-background) 0%,var(--fp-accent-teal) 100%);border-radius:inherit;"></div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -917,8 +1098,8 @@ def render_question_input(connection: sqlite3.Connection, db_path: Path) -> None
     st.markdown(
         f"""
         <div style="display:flex;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap;">
-            <div style="font-size:0.95rem;color:#355194;font-weight:700;">Need Category Triggered</div>
-            <div style="font-size:0.95rem;color:#355194;font-weight:700;">Risk Impact</div>
+            <div style="font-size:0.95rem;color:var(--fp-text-secondary);font-weight:700;">Need Category Triggered</div>
+            <div style="font-size:0.95rem;color:var(--fp-text-secondary);font-weight:700;">Risk Impact</div>
         </div>
         <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;flex-wrap:wrap;">
             <span class="ai-need-chip">{need_label}</span>
@@ -1020,7 +1201,7 @@ def render_final_summary() -> None:
             """,
             unsafe_allow_html=True,
         )
-    st.markdown('<div style="margin-top:16px;font-weight:800;color:#12307f;">Recommended Resources</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:16px;font-weight:800;color:var(--fp-heading);">Recommended Resources</div>', unsafe_allow_html=True)
     if not result:
         st.info("No recommendations were generated.")
     else:
@@ -1037,6 +1218,7 @@ def render_final_summary() -> None:
                             <div class="assist-resource-main">
                                 <div class="ai-resource-title">{item['resource_name']}</div>
                                 <div class="assist-resource-desc">Priority: {item['priority_level']} | Score: {item['match_score']:.1f}</div>
+                                <div class="assist-resource-desc">{resource_contact_html(item.get('contact_phone', ''), item.get('contact_email', ''), item.get('website', ''))}</div>
                             </div>
                         </div>
                         """,
@@ -1096,9 +1278,10 @@ def render() -> None:
         unsafe_allow_html=True,
     )
     st.markdown(
-        """
-        <div class="ai-header-card">
+        f"""
+        <div class="ai-header-card fp-brand-header">
             <div class="ai-header-title">Future Path AI Assistant</div>
+            <div class="fp-header-meta">{current_theme_badge_html()}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1108,6 +1291,7 @@ def render() -> None:
     render_top_navigation("ai_assistant")
 
     render_notice()
+    render_theme_toggle()
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
 
