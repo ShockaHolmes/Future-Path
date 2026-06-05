@@ -16,7 +16,15 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
-from dashboard_theme import branded_palette, current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
+from dashboard_theme import (
+    branded_palette,
+    current_theme_badge_html,
+    get_theme_mode,
+    render_theme_toggle,
+    theme_component_styles,
+    theme_css_variables,
+    themed_url,
+)
 from candidate_promotion import load_promotable_candidate_intakes
 
 
@@ -43,6 +51,63 @@ def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
         (table_name,),
     ).fetchone()
     return row is not None
+
+
+def ensure_candidate_profiles_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS candidate_profiles (
+            candidate_profile_id TEXT PRIMARY KEY,
+            first_name TEXT,
+            last_name TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def load_candidate_profile_names(connection: sqlite3.Connection, candidate_profile_id: str) -> tuple[str, str]:
+    if not table_exists(connection, "candidate_profiles"):
+        return "", ""
+    row = connection.execute(
+        """
+        SELECT COALESCE(first_name, ''), COALESCE(last_name, '')
+        FROM candidate_profiles
+        WHERE candidate_profile_id = ?
+        """,
+        (candidate_profile_id,),
+    ).fetchone()
+    if row is None:
+        return "", ""
+    return str(row[0] or "").strip(), str(row[1] or "").strip()
+
+
+def save_candidate_profile_name(
+    connection: sqlite3.Connection,
+    candidate_profile_id: str,
+    first_name: str,
+    last_name: str,
+) -> None:
+    normalized_candidate_id = candidate_profile_id.strip()
+    if not normalized_candidate_id:
+        return
+    ensure_candidate_profiles_table(connection)
+    connection.execute(
+        """
+        INSERT INTO candidate_profiles (candidate_profile_id, first_name, last_name)
+        VALUES (?, ?, ?)
+        ON CONFLICT(candidate_profile_id) DO UPDATE SET
+            first_name = excluded.first_name,
+            last_name = excluded.last_name,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (
+            normalized_candidate_id,
+            first_name.strip() or None,
+            last_name.strip() or None,
+        ),
+    )
 
 
 def load_active_resources(connection: sqlite3.Connection) -> int:
@@ -135,6 +200,7 @@ def load_dashboard_metrics(
 ) -> dict[str, float | int]:
     metrics: dict[str, float | int] = {
         "total_youth": 0,
+        "total_participants": int(candidate_queue_count),
         "high_risk_cases": 0,
         "stable_housing_pct": 0.0,
         "employment_pct": 0.0,
@@ -146,6 +212,7 @@ def load_dashboard_metrics(
         return metrics
 
     metrics["total_youth"] = int(len(filtered_youth_df))
+    metrics["total_participants"] = int(len(filtered_youth_df)) + int(candidate_queue_count)
     metrics["high_risk_cases"] = int((filtered_youth_df["risk_level"] == "High").sum())
     metrics["stable_housing_pct"] = float((filtered_youth_df["housing"] == "Stable housing").mean() * 100.0)
     metrics["employment_pct"] = float((filtered_youth_df["employment"] != "Unemployed").mean() * 100.0)
@@ -262,17 +329,19 @@ def load_top_recommended_resources(
 def load_candidate_promotion_queue(connection: sqlite3.Connection) -> pd.DataFrame:
     queue_df = load_promotable_candidate_intakes(connection)
     if queue_df.empty:
-        return pd.DataFrame(columns=["Candidate ID", "Top Need", "Completed", "Assigned Resources"])
+        return pd.DataFrame(columns=["Candidate Name", "Candidate ID", "Status", "Top Need", "Last Activity", "Assigned Resources"])
 
     display_df = queue_df.copy().head(5)
-    display_df["Completed"] = display_df["completed_at"].fillna(display_df["started_at"]).astype(str).str.slice(0, 10)
+    display_df["Status"] = display_df["session_status"].astype(str).str.replace("_", " ").str.title()
+    display_df["Last Activity"] = display_df["completed_at"].fillna(display_df["started_at"]).astype(str).str.slice(0, 10)
     display_df["Assigned Resources"] = display_df["assignment_count"].fillna(0).astype(int)
     return display_df.rename(
         columns={
+            "candidate_name": "Candidate Name",
             "candidate_profile_id": "Candidate ID",
             "top_need_category": "Top Need",
         }
-    )[["Candidate ID", "Top Need", "Completed", "Assigned Resources"]]
+    )[["Candidate Name", "Candidate ID", "Status", "Top Need", "Last Activity", "Assigned Resources"]]
 
 
 def load_county_level_needs(filtered_youth_df: pd.DataFrame) -> pd.DataFrame:
@@ -347,9 +416,9 @@ def build_insight_callouts(
 
 def render_metric_cards(metrics: dict[str, float | int]) -> None:
     cards = [
-        ("Total Youth", f"{int(metrics['total_youth']):,}", "vs last month"),
+        ("Youth + Candidates", f"{int(metrics['total_participants']):,}", "in current queue"),
         ("High Risk Cases", f"{int(metrics['high_risk_cases']):,}", "priority review"),
-        ("Candidates Waiting", f"{int(metrics['candidate_queue_count']):,}", "ready to promote"),
+        ("Candidates Waiting", f"{int(metrics['candidate_queue_count']):,}", "in queue"),
         ("Stable Housing %", f"{float(metrics['stable_housing_pct']):.0f}%", "current view"),
         ("Employed %", f"{float(metrics['employment_pct']):.0f}%", "current view"),
         ("Active Resources", f"{int(metrics['active_resources']):,}", "catalog count"),
@@ -433,12 +502,37 @@ def render_pie_chart(frame: pd.DataFrame, label_column: str, value_column: str, 
 def render_state_visual(county_needs_df: pd.DataFrame) -> None:
     top_counties = county_needs_df.head(3).copy() if not county_needs_df.empty else pd.DataFrame(columns=["county", "need_index"])
     left_col, right_col = st.columns([0.75, 1.65], gap="medium")
+    _ = get_theme_mode()
+
+    new_castle_link = themed_url("?county=New+Castle#county-insights")
+    kent_link = themed_url("?county=Kent#county-insights")
+    sussex_link = themed_url("?county=Sussex#county-insights")
+    clear_county_link = themed_url("?county=all#county-insights")
 
     with left_col:
         if STATE_ICON_PATH.exists():
-            st.markdown('<div class="state-image-wrap">', unsafe_allow_html=True)
-            st.image(str(STATE_ICON_PATH), caption="Delaware", width=100)
-            st.markdown('</div>', unsafe_allow_html=True)
+            state_image_uri = load_image_data_uri(STATE_ICON_PATH)
+            if state_image_uri is None:
+                st.markdown('<div class="state-image-wrap">', unsafe_allow_html=True)
+                st.image(str(STATE_ICON_PATH), caption="Delaware", width=100)
+                st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    dedent(
+                        f"""
+                        <div class="de-map-wrap" title="Click county areas to filter">
+                            <img src="{state_image_uri}" alt="Delaware county map" class="de-map-img"/>
+                            <a href="{new_castle_link}" class="de-map-hit de-map-new-castle" title="Filter New Castle">New Castle</a>
+                            <a href="{kent_link}" class="de-map-hit de-map-kent" title="Filter Kent">Kent</a>
+                            <a href="{sussex_link}" class="de-map-hit de-map-sussex" title="Filter Sussex">Sussex</a>
+                        </div>
+                        <div class="de-map-actions">
+                            <a href="{clear_county_link}" class="de-map-clear-link">Show All Counties</a>
+                        </div>
+                        """
+                    ).strip(),
+                    unsafe_allow_html=True,
+                )
         else:
             st.info("Delaware state icon not found.")
 
@@ -447,6 +541,7 @@ def render_state_visual(county_needs_df: pd.DataFrame) -> None:
             st.caption("No county data available.")
             return
 
+        st.caption("Click county regions on the Delaware map to apply County Filter.")
         max_need = max(float(top_counties["need_index"].max()), 1.0)
         for _, row in top_counties.iterrows():
             need_value = int(row["need_index"])
@@ -515,6 +610,33 @@ def inject_overview_styles() -> None:
             background: var(--fp-button-background) !important;
             color: var(--fp-button-text) !important;
             border: 1px solid var(--fp-button-border) !important;
+        }
+
+        .overview-jump-link {
+            display: block;
+            width: 100%;
+            text-decoration: none !important;
+            border: 1px solid var(--fp-button-border);
+            border-radius: 10px;
+            background: var(--fp-button-background);
+            color: var(--fp-button-text) !important;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.42rem 0.55rem;
+            margin: 0.18rem 0;
+        }
+
+        .overview-jump-link:hover {
+            background: var(--fp-button-hover);
+            color: var(--fp-button-text) !important;
+        }
+
+        .overview-anchor-target {
+            position: relative;
+            top: -74px;
+            visibility: hidden;
+            height: 0;
+            display: block;
         }
 
         .main .block-container {
@@ -938,6 +1060,79 @@ def inject_overview_styles() -> None:
             border-radius: 6px;
         }
 
+        .de-map-wrap {
+            position: relative;
+            width: 126px;
+            max-width: 100%;
+            margin: 0.2rem auto 0.1rem auto;
+        }
+
+        .de-map-img {
+            width: 100%;
+            display: block;
+            border-radius: 6px;
+            mix-blend-mode: multiply;
+        }
+
+        .de-map-hit {
+            position: absolute;
+            display: block;
+            text-indent: -9999px;
+            overflow: hidden;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: rgba(14, 116, 144, 0.06);
+            transition: background 120ms ease, border-color 120ms ease;
+            cursor: pointer;
+        }
+
+        .de-map-hit:hover,
+        .de-map-hit:focus-visible {
+            background: rgba(37, 99, 235, 0.18);
+            border-color: rgba(37, 99, 235, 0.4);
+            outline: none;
+        }
+
+        .de-map-new-castle {
+            left: 18.5%;
+            width: 58%;
+            top: 2.5%;
+            height: 31.5%;
+            clip-path: polygon(15% 0%, 82% 0%, 100% 26%, 88% 47%, 98% 68%, 72% 100%, 20% 90%, 0% 44%);
+        }
+
+        .de-map-kent {
+            left: 17%;
+            width: 60%;
+            top: 33.8%;
+            height: 27.8%;
+            clip-path: polygon(8% 0%, 94% 0%, 100% 22%, 90% 100%, 0% 96%, 5% 36%);
+        }
+
+        .de-map-sussex {
+            left: 14.5%;
+            width: 65%;
+            top: 61.5%;
+            height: 35.8%;
+            clip-path: polygon(2% 0%, 86% 0%, 98% 28%, 90% 100%, 0% 96%);
+        }
+
+        .de-map-actions {
+            text-align: center;
+            margin-top: 0.2rem;
+        }
+
+        .de-map-clear-link {
+            color: var(--fp-link-color, #1d4ed8);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .de-map-clear-link:hover {
+            text-decoration: underline;
+        }
+
         .insight-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1084,24 +1279,19 @@ def render() -> None:
     )
     render_theme_toggle()
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### Navigation")
-    st.sidebar.button("Overview", use_container_width=True, disabled=True, key="sidebar_overview_disabled")
-    if st.sidebar.button("Youth Dashboard", use_container_width=True, key="sidebar_switch_youth"):
-        next_url = themed_url(switch_dashboard("youth_dashboard", current_key="overview"))
-        st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-        st.stop()
-    if st.sidebar.button("Youth Profiles", use_container_width=True, key="sidebar_switch_profile"):
-        next_url = themed_url(switch_dashboard("profile_lookup", current_key="overview"))
-        st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-        st.stop()
-    if st.sidebar.button("AI Assistant", use_container_width=True, key="sidebar_switch_ai"):
-        next_url = themed_url(switch_dashboard("ai_assistant", current_key="overview"))
-        st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-        st.stop()
-    if st.sidebar.button("Caseworker Dashboard", use_container_width=True, key="sidebar_switch_caseworker"):
-        next_url = themed_url(switch_dashboard("caseworker_dashboard", current_key="overview"))
-        st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-        st.stop()
+    st.sidebar.markdown("### Quick Jump")
+    jump_tabs = st.sidebar.tabs(["Top", "Workflow", "Records"])
+    with jump_tabs[0]:
+        st.markdown('<a class="overview-jump-link" href="#overview-filters">Filters</a>', unsafe_allow_html=True)
+        st.markdown('<a class="overview-jump-link" href="#overview-metrics">KPI Cards</a>', unsafe_allow_html=True)
+        st.markdown('<a class="overview-jump-link" href="#risk-score-breakdown">Risk Breakdown</a>', unsafe_allow_html=True)
+    with jump_tabs[1]:
+        st.markdown('<a class="overview-jump-link" href="#county-insights">County Insights</a>', unsafe_allow_html=True)
+        st.markdown('<a class="overview-jump-link" href="#top-supports">Top Supports</a>', unsafe_allow_html=True)
+        st.markdown('<a class="overview-jump-link" href="#insight-callouts">Insight Callouts</a>', unsafe_allow_html=True)
+    with jump_tabs[2]:
+        st.markdown('<a class="overview-jump-link" href="#recent-youth-profiles">Recent Profiles</a>', unsafe_allow_html=True)
+        st.markdown('<a class="overview-jump-link" href="#candidate-queue">Candidate Queue</a>', unsafe_allow_html=True)
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("#### Quick Insight")
@@ -1173,12 +1363,23 @@ def render() -> None:
     if "risk_level_filter" not in st.session_state:
         st.session_state["risk_level_filter"] = []
 
+    selected_county_from_map = str(st.query_params.get("county", "")).strip()
+    if selected_county_from_map:
+        normalized_county_lookup = {value.lower(): value for value in counties}
+        if selected_county_from_map.lower() == "all":
+            st.session_state["pending_county_filter"] = []
+        elif selected_county_from_map.lower() in normalized_county_lookup:
+            st.session_state["pending_county_filter"] = [normalized_county_lookup[selected_county_from_map.lower()]]
+            st.session_state["pending_risk_level_filter"] = []
+        st.query_params.pop("county", None)
+
     # Apply queued quick-filter updates before widgets are created.
     if "pending_county_filter" in st.session_state:
         st.session_state["county_filter"] = st.session_state.pop("pending_county_filter")
     if "pending_risk_level_filter" in st.session_state:
         st.session_state["risk_level_filter"] = st.session_state.pop("pending_risk_level_filter")
 
+    st.markdown('<span id="overview-filters" class="overview-anchor-target"></span>', unsafe_allow_html=True)
     search_query = st.text_input(
         "Search by Youth ID or County",
         placeholder="Search by Youth ID or County...",
@@ -1241,6 +1442,7 @@ def render() -> None:
         candidate_queue_count=len(candidate_queue_df),
     )
 
+    st.markdown('<span id="overview-metrics" class="overview-anchor-target"></span>', unsafe_allow_html=True)
     render_metric_cards(metrics)
     st.markdown('<div style="height: 0.35rem;"></div>', unsafe_allow_html=True)
     st.markdown(
@@ -1252,6 +1454,7 @@ def render() -> None:
     left_col, right_col = st.columns([1.25, 1])
 
     with left_col:
+        st.markdown('<span id="risk-score-breakdown" class="overview-anchor-target"></span>', unsafe_allow_html=True)
         st.markdown('<div class="overview-panel">', unsafe_allow_html=True)
         st.markdown('<div class="overview-panel-title">Risk Score Breakdown</div>', unsafe_allow_html=True)
         render_pie_chart(
@@ -1298,6 +1501,7 @@ def render() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
     with right_col:
+        st.markdown('<span id="county-insights" class="overview-anchor-target"></span>', unsafe_allow_html=True)
         st.markdown('<div class="overview-side-panel">', unsafe_allow_html=True)
         render_pie_chart(
             county_needs_df,
@@ -1322,6 +1526,7 @@ def render() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="overview-side-panel" style="margin-top: 16px;">', unsafe_allow_html=True)
+        st.markdown('<span id="top-supports" class="overview-anchor-target"></span>', unsafe_allow_html=True)
         st.markdown('<div class="overview-panel-title">Top Recommended Supports</div>', unsafe_allow_html=True)
         if top_resources_df.empty:
             st.info("No recommendation data found.")
@@ -1338,6 +1543,7 @@ def render() -> None:
 
     bottom_left, bottom_right = st.columns([1.55, 1])
     with bottom_left:
+        st.markdown('<span id="recent-youth-profiles" class="overview-anchor-target"></span>', unsafe_allow_html=True)
         st.markdown('<div class="overview-table-shell">', unsafe_allow_html=True)
         st.markdown('<div class="overview-panel-title">Recent Youth Profiles</div>', unsafe_allow_html=True)
         recent_profiles = filtered_youth_df.copy().head(5)
@@ -1353,33 +1559,84 @@ def render() -> None:
         st.markdown('<div id="candidate-queue"></div>', unsafe_allow_html=True)
         st.markdown('<div class="overview-side-panel">', unsafe_allow_html=True)
         st.markdown('<div class="overview-panel-title">Candidate Queue</div>', unsafe_allow_html=True)
-        st.caption("Completed candidate intakes ready to promote into teen records.")
+        st.caption("Candidates appear here as soon as an ID is generated. Promotion requires completed intake.")
         if candidate_queue_df.empty:
             st.info("No candidate intakes are waiting for promotion.")
             if st.button("Start Candidate Intake", width="stretch", key="overview_start_candidate_intake"):
-                next_url = switch_dashboard("ai_assistant", current_key="overview")
+                next_url = themed_url(switch_dashboard("ai_assistant", current_key="overview"))
                 st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
                 st.stop()
         else:
             st.dataframe(candidate_queue_df, hide_index=True, width="stretch")
+
+            st.markdown("#### Update Candidate Name")
+            candidate_name_map = dict(
+                zip(
+                    candidate_queue_df["Candidate ID"].astype(str),
+                    candidate_queue_df["Candidate Name"].astype(str),
+                )
+            )
+            selected_candidate_id = st.selectbox(
+                "Candidate",
+                options=list(candidate_name_map.keys()),
+                format_func=lambda candidate_id: f"{candidate_name_map.get(candidate_id, candidate_id)} ({candidate_id})",
+                key="overview_candidate_name_editor_select",
+            )
+
+            with sqlite3.connect(db_path) as connection:
+                current_first_name, current_last_name = load_candidate_profile_names(connection, selected_candidate_id)
+
+            edit_col1, edit_col2, edit_col3 = st.columns([1, 1, 0.8])
+            with edit_col1:
+                edited_first_name = st.text_input(
+                    "First Name",
+                    value=current_first_name,
+                    key=f"overview_candidate_name_edit_first_{selected_candidate_id}",
+                )
+            with edit_col2:
+                edited_last_name = st.text_input(
+                    "Last Name",
+                    value=current_last_name,
+                    key=f"overview_candidate_name_edit_last_{selected_candidate_id}",
+                )
+            with edit_col3:
+                save_name_clicked = st.button(
+                    "Save Name",
+                    key=f"overview_candidate_name_save_btn_{selected_candidate_id}",
+                    use_container_width=True,
+                )
+
+            if save_name_clicked:
+                with sqlite3.connect(db_path) as connection:
+                    save_candidate_profile_name(
+                        connection,
+                        selected_candidate_id,
+                        edited_first_name,
+                        edited_last_name,
+                    )
+                    connection.commit()
+                st.success(f"Updated name for {selected_candidate_id}.")
+                st.rerun()
+
             action_col1, action_col2, action_col3 = st.columns(3)
             with action_col1:
                 if st.button("Start Candidate Intake", width="stretch", key="overview_start_candidate_intake_from_queue"):
-                    next_url = switch_dashboard("ai_assistant", current_key="overview")
+                    next_url = themed_url(switch_dashboard("ai_assistant", current_key="overview"))
                     st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
                     st.stop()
             with action_col2:
                 if st.button("Promote In Caseworker", width="stretch", key="overview_promote_candidate"):
-                    next_url = switch_dashboard("caseworker_dashboard", current_key="overview")
+                    next_url = themed_url(switch_dashboard("caseworker_dashboard", current_key="overview"))
                     st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
                     st.stop()
             with action_col3:
                 if st.button("Open AI Assistant", width="stretch", key="overview_open_ai_assistant"):
-                    next_url = switch_dashboard("ai_assistant", current_key="overview")
+                    next_url = themed_url(switch_dashboard("ai_assistant", current_key="overview"))
                     st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
                     st.stop()
         st.markdown('</div>', unsafe_allow_html=True)
 
+        st.markdown('<span id="insight-callouts" class="overview-anchor-target"></span>', unsafe_allow_html=True)
         st.markdown('<div class="overview-side-panel">', unsafe_allow_html=True)
         st.markdown('<div class="overview-panel-title">Insight Callouts</div>', unsafe_allow_html=True)
         insights = build_insight_callouts(metrics, county_needs_df, top_resources_df, risk_breakdown)

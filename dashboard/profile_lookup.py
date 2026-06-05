@@ -583,6 +583,33 @@ def inject_profile_lookup_styles() -> None:
             color: var(--fp-button-primary-text) !important;
         }
 
+        .pl-jump-link {
+            display: block;
+            width: 100%;
+            text-decoration: none !important;
+            border: 1px solid var(--fp-button-border);
+            border-radius: 10px;
+            background: var(--fp-button-background);
+            color: var(--fp-button-text) !important;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.42rem 0.55rem;
+            margin: 0.18rem 0;
+        }
+
+        .pl-jump-link:hover {
+            background: var(--fp-button-hover);
+            color: var(--fp-button-text) !important;
+        }
+
+        .pl-anchor-target {
+            position: relative;
+            top: -72px;
+            visibility: hidden;
+            height: 0;
+            display: block;
+        }
+
         [data-testid="stDataFrame"] {
             --gdg-bg-cell: var(--fp-data-cell-bg);
             --gdg-bg-cell-medium: var(--fp-surface-secondary);
@@ -670,6 +697,17 @@ def render() -> None:
     )
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
+    st.sidebar.divider()
+    st.sidebar.markdown("### Quick Jump")
+    profile_jump_tabs = st.sidebar.tabs(["Top", "Workflow", "Records"])
+    with profile_jump_tabs[0]:
+        st.markdown('<a class="pl-jump-link" href="#profile-search">Search</a>', unsafe_allow_html=True)
+        st.markdown('<a class="pl-jump-link" href="#profile-info">Profile Info</a>', unsafe_allow_html=True)
+    with profile_jump_tabs[1]:
+        st.markdown('<a class="pl-jump-link" href="#profile-risk">Risk Score</a>', unsafe_allow_html=True)
+        st.markdown('<a class="pl-jump-link" href="#profile-recommendations">Recommendations</a>', unsafe_allow_html=True)
+    with profile_jump_tabs[2]:
+        st.markdown('<a class="pl-jump-link" href="#profile-intake-summary">AI Intake Summary</a>', unsafe_allow_html=True)
 
     if not db_path.exists():
         st.error(f"Database not found at: {db_path}")
@@ -684,6 +722,7 @@ def render() -> None:
         st.warning("No youth profiles found. Load youth profiles into the database first.")
         return
 
+    st.markdown('<span id="profile-search" class="pl-anchor-target"></span>', unsafe_allow_html=True)
     mode_col, query_col = st.columns([1, 3])
     with mode_col:
         search_mode = st.radio("Search By", options=["Youth ID", "Name"], horizontal=True)
@@ -708,6 +747,7 @@ def render() -> None:
 
     selected_row = filtered_profiles[filtered_profiles["youth_id"] == selected_youth_id].iloc[0]
 
+    st.markdown('<span id="profile-info" class="pl-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Profile Information")
     st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
     info_col1, info_col2, info_col3 = st.columns(3)
@@ -740,6 +780,7 @@ def render() -> None:
         intake_session_df, intake_answers_df = load_latest_intake_summary(connection, selected_youth_id)
 
     st.divider()
+    st.markdown('<span id="profile-risk" class="pl-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Latest Risk Score")
     st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
     if risk_df.empty:
@@ -755,6 +796,7 @@ def render() -> None:
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
+    st.markdown('<span id="profile-recommendations" class="pl-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Recommended Resources")
     st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
     if rec_df.empty:
@@ -780,6 +822,7 @@ def render() -> None:
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
+    st.markdown('<span id="profile-intake-summary" class="pl-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Latest AI Assistant Intake Summary")
     st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
     if intake_session_df.empty:

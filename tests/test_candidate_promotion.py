@@ -116,7 +116,7 @@ def test_build_profile_defaults_from_answers_maps_candidate_answers() -> None:
     assert defaults['prior_homelessness'] == 'Yes'
 
 
-def test_load_promotable_candidate_intakes_returns_latest_completed_candidates() -> None:
+def test_load_promotable_candidate_intakes_returns_latest_candidate_queue_entries() -> None:
     with sqlite3.connect(":memory:") as connection:
         _create_schema(connection)
         connection.execute(
@@ -203,10 +203,18 @@ def test_load_promotable_candidate_intakes_returns_latest_completed_candidates()
 
         frame = load_promotable_candidate_intakes(connection)
 
-        assert list(frame["candidate_profile_id"]) == ["CP-3001"]
-        assert frame.iloc[0]["intake_session_id"] == "INTAKE-CAND-NEW"
-        assert int(frame.iloc[0]["assignment_count"]) == 2
-        assert frame.iloc[0]["top_need_category"] == "housing"
+        assert list(frame["candidate_profile_id"]) == ["CP-3002", "CP-3001"]
+        cp_3002 = frame[frame["candidate_profile_id"] == "CP-3002"].iloc[0]
+        cp_3001 = frame[frame["candidate_profile_id"] == "CP-3001"].iloc[0]
+
+        assert cp_3002["intake_session_id"] == "INTAKE-CAND-IP"
+        assert str(cp_3002["session_status"]).lower() == "in_progress"
+        assert int(cp_3002["assignment_count"]) == 0
+
+        assert cp_3001["intake_session_id"] == "INTAKE-CAND-NEW"
+        assert str(cp_3001["session_status"]).lower() == "completed"
+        assert int(cp_3001["assignment_count"]) == 2
+        assert cp_3001["top_need_category"] == "housing"
 
 
 def test_promote_candidate_to_youth_migrates_linked_records() -> None:

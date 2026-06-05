@@ -80,10 +80,68 @@ def ensure_resources_table(connection: sqlite3.Connection) -> None:
     )
 
 
+def ensure_candidate_profiles_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS candidate_profiles (
+            candidate_profile_id TEXT PRIMARY KEY,
+            first_name TEXT,
+            last_name TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def load_candidate_profile_names(connection: sqlite3.Connection, candidate_profile_id: str) -> tuple[str, str]:
+    if not table_exists(connection, "candidate_profiles"):
+        return "", ""
+    row = connection.execute(
+        """
+        SELECT COALESCE(first_name, ''), COALESCE(last_name, '')
+        FROM candidate_profiles
+        WHERE candidate_profile_id = ?
+        """,
+        (candidate_profile_id,),
+    ).fetchone()
+    if row is None:
+        return "", ""
+    return str(row[0] or "").strip(), str(row[1] or "").strip()
+
+
+def save_candidate_profile_name(
+    connection: sqlite3.Connection,
+    candidate_profile_id: str,
+    first_name: str,
+    last_name: str,
+) -> None:
+    normalized_candidate_id = candidate_profile_id.strip()
+    if not normalized_candidate_id:
+        return
+    ensure_candidate_profiles_table(connection)
+    connection.execute(
+        """
+        INSERT INTO candidate_profiles (candidate_profile_id, first_name, last_name)
+        VALUES (?, ?, ?)
+        ON CONFLICT(candidate_profile_id) DO UPDATE SET
+            first_name = excluded.first_name,
+            last_name = excluded.last_name,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (
+            normalized_candidate_id,
+            first_name.strip() or None,
+            last_name.strip() or None,
+        ),
+    )
+
+
 def ensure_caseworker_tables(connection: sqlite3.Connection) -> None:
     connection.execute("PRAGMA foreign_keys = ON")
     ensure_intake_tables(connection)
     ensure_resources_table(connection)
+    ensure_candidate_profiles_table(connection)
     ensure_assigned_resources_table_integrity(connection)
 
     connection.execute(
@@ -1217,6 +1275,43 @@ def inject_caseworker_dashboard_styles() -> None:
             padding: 12px;
         }
 
+        .cw-left-nav {
+            position: sticky;
+            top: 0.75rem;
+            border: 1px solid #dee8ff;
+            border-radius: 16px;
+            background: #ffffff;
+            padding: 12px;
+            margin-bottom: 0.9rem;
+        }
+
+        .cw-jump-btn {
+            display: block;
+            width: 100%;
+            text-decoration: none !important;
+            border: 1px solid #cbd8f8;
+            border-radius: 10px;
+            background: #f3f7ff;
+            color: #173b80 !important;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.4rem 0.55rem;
+            margin: 0.18rem 0;
+        }
+
+        .cw-jump-btn:hover {
+            background: #e7efff;
+            color: #102f84 !important;
+        }
+
+        .cw-anchor-target {
+            position: relative;
+            top: -70px;
+            visibility: hidden;
+            height: 0;
+            display: block;
+        }
+
         .cw-table-subtle {
             color: #244780;
             font-size: 0.86rem;
@@ -1433,6 +1528,7 @@ def inject_caseworker_dashboard_styles() -> None:
         .cw-metric-card,
         .cw-alert-wrap,
         .cw-section-card,
+        .cw-left-nav,
         .stDataFrame {
             border-color: var(--fp-border-primary) !important;
         }
@@ -1453,6 +1549,17 @@ def inject_caseworker_dashboard_styles() -> None:
         .cw-metric-card,
         .cw-section-card {
             background: var(--fp-surface-primary) !important;
+        }
+
+        .cw-jump-btn {
+            background: var(--fp-button-background) !important;
+            color: var(--fp-button-text) !important;
+            border-color: var(--fp-button-border) !important;
+        }
+
+        .cw-jump-btn:hover {
+            background: var(--fp-button-hover) !important;
+            color: var(--fp-button-text) !important;
         }
 
         .cw-alert-wrap {
@@ -1658,6 +1765,26 @@ def render_top_navigation(current_page: str) -> None:
                     st.stop()
 
 
+def render_sidebar_quick_jump() -> None:
+    st.sidebar.markdown("### Quick Jump")
+    tabs = st.sidebar.tabs(["Top", "Workflow", "Records"])
+
+    with tabs[0]:
+        st.markdown('<a class="cw-jump-btn" href="#caseload-overview">High-Risk Alerts</a>', unsafe_allow_html=True)
+        st.markdown('<a class="cw-jump-btn" href="#assigned-youth">Assigned Youth</a>', unsafe_allow_html=True)
+        st.markdown('<a class="cw-jump-btn" href="#case-workspace">Case Workspace</a>', unsafe_allow_html=True)
+        st.markdown('<a class="cw-jump-btn" href="#follow-up-tracker">Follow-Up Tracker</a>', unsafe_allow_html=True)
+
+    with tabs[1]:
+        st.markdown('<a class="cw-jump-btn" href="#candidate-promotion">Candidate Promotion</a>', unsafe_allow_html=True)
+        st.markdown('<a class="cw-jump-btn" href="#ai-results">AI Results</a>', unsafe_allow_html=True)
+        st.markdown('<a class="cw-jump-btn" href="#resource-assignment">Resource Assignment</a>', unsafe_allow_html=True)
+
+    with tabs[2]:
+        st.markdown('<a class="cw-jump-btn" href="#email-login-settings">Email Login</a>', unsafe_allow_html=True)
+        st.markdown('<a class="cw-jump-btn" href="#outreach-queue">Outreach Queue</a>', unsafe_allow_html=True)
+
+
 def render() -> None:
     st.set_page_config(page_title="Future Path Caseworker Dashboard", page_icon="FP", layout="wide")
     ensure_single_dashboard("caseworker_dashboard")
@@ -1677,21 +1804,14 @@ def render() -> None:
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
     st.sidebar.divider()
-    st.sidebar.subheader("Email Delivery (Optional SMTP)")
-    smtp_host = st.sidebar.text_input("SMTP Host", value=os.getenv("FUTURE_PATH_SMTP_HOST", "")).strip()
-    smtp_port = int(
-        st.sidebar.number_input(
-            "SMTP Port",
-            min_value=1,
-            max_value=65535,
-            value=int(os.getenv("FUTURE_PATH_SMTP_PORT", "587")),
-            step=1,
-        )
-    )
-    smtp_username = st.sidebar.text_input("SMTP Username", value=os.getenv("FUTURE_PATH_SMTP_USERNAME", "")).strip()
-    smtp_password = st.sidebar.text_input("SMTP Password", type="password", value=os.getenv("FUTURE_PATH_SMTP_PASSWORD", ""))
-    smtp_sender = st.sidebar.text_input("From Email", value=os.getenv("FUTURE_PATH_SMTP_FROM", "no-reply@futurepath.local")).strip()
-    smtp_use_tls = st.sidebar.checkbox("Use STARTTLS", value=True)
+    render_sidebar_quick_jump()
+
+    smtp_host = ""
+    smtp_port = int(os.getenv("FUTURE_PATH_SMTP_PORT", "587"))
+    smtp_username = ""
+    smtp_password = ""
+    smtp_sender = os.getenv("FUTURE_PATH_SMTP_FROM", "no-reply@futurepath.local").strip()
+    smtp_use_tls = True
     if not db_path.exists():
         st.error(f"Database not found at: {db_path}")
         st.info("Run the pipeline first, then reload this dashboard.")
@@ -1704,28 +1824,29 @@ def render() -> None:
     with sqlite3.connect(db_path) as connection:
         caseworkers_df = load_caseworkers(connection)
 
-    st.sidebar.subheader("Caseworker Login")
+    st.markdown('<span id="caseworker-login" class="cw-anchor-target"></span>', unsafe_allow_html=True)
+    st.subheader("Caseworker Login")
     active_caseworker_id = ""
     active_caseworker_name = ""
     active_caseworker_email = ""
     active_caseworker_is_active = False
 
     if caseworkers_df.empty:
-        st.sidebar.info("No caseworker profiles found yet. Create one below.")
+        st.info("No caseworker profiles found yet. Create one below.")
     else:
-        labels = caseworkers_df.apply(
-            lambda row: f"{row['full_name']} ({row['caseworker_id']})"
-            + ("" if int(row["is_active"]) == 1 else " [inactive]"),
-            axis=1,
-        ).tolist()
-        active_by_id = {
-            str(row["caseworker_id"]): f"{row['full_name']} ({row['caseworker_id']})"
-            + ("" if int(row["is_active"]) == 1 else " [inactive]")
-            for _, row in caseworkers_df.iterrows()
-        }
-        selected_label = active_by_id.get(st.session_state.get("active_caseworker_id", ""), labels[0])
-        selected_label = st.sidebar.selectbox("Active Caseworker", options=labels, index=labels.index(selected_label))
-        selected_id = selected_label.rsplit("(", 1)[1].rstrip(")")
+        labels = []
+        label_by_id: dict[str, str] = {}
+        id_by_label: dict[str, str] = {}
+        for _, row in caseworkers_df.iterrows():
+            label = f"{row['full_name']} ({row['caseworker_id']})" + ("" if int(row["is_active"]) == 1 else " [inactive]")
+            row_id = str(row["caseworker_id"])
+            labels.append(label)
+            label_by_id[row_id] = label
+            id_by_label[label] = row_id
+
+        selected_label = label_by_id.get(st.session_state.get("active_caseworker_id", ""), labels[0])
+        selected_label = st.selectbox("Active Caseworker", options=labels, index=labels.index(selected_label))
+        selected_id = id_by_label[selected_label]
         selected_row = caseworkers_df[caseworkers_df["caseworker_id"] == selected_id].iloc[0]
         active_caseworker_id = str(selected_row["caseworker_id"])
         active_caseworker_name = str(selected_row["full_name"])
@@ -1733,15 +1854,15 @@ def render() -> None:
         active_caseworker_is_active = int(selected_row["is_active"]) == 1
         st.session_state["active_caseworker_id"] = active_caseworker_id
         if active_caseworker_is_active:
-            st.sidebar.success(f"Signed in as {active_caseworker_name}")
+            st.success(f"Signed in as {active_caseworker_name}")
         else:
-            st.sidebar.warning(f"{active_caseworker_name} is inactive. Case close actions are disabled.")
+            st.warning(f"{active_caseworker_name} is inactive. Case close actions are disabled.")
 
-    st.sidebar.divider()
-    st.sidebar.subheader("Create / Update Profile")
-    profile_id = st.sidebar.text_input("Caseworker ID", value=active_caseworker_id or "cw-001").strip()
-    profile_name = st.sidebar.text_input("Full Name", value=active_caseworker_name).strip()
-    profile_email = st.sidebar.text_input("Email", value=active_caseworker_email).strip()
+    st.markdown("### Create / Update Profile")
+    profile_col1, profile_col2, profile_col3 = st.columns(3)
+    profile_id = profile_col1.text_input("Caseworker ID", value=active_caseworker_id or "cw-001").strip()
+    profile_name = profile_col2.text_input("Full Name", value=active_caseworker_name).strip()
+    profile_email = profile_col3.text_input("Email", value=active_caseworker_email).strip()
 
     existing_profile = caseworkers_df[caseworkers_df["caseworker_id"] == profile_id]
     if not existing_profile.empty:
@@ -1750,11 +1871,11 @@ def render() -> None:
         default_active = active_caseworker_is_active
     else:
         default_active = True
-    profile_is_active = st.sidebar.checkbox("Active Caseworker", value=default_active)
+    profile_is_active = st.checkbox("Active Caseworker", value=default_active)
 
-    if st.sidebar.button("Save Caseworker Profile", width="stretch"):
+    if st.button("Save Caseworker Profile", width="stretch"):
         if not profile_id or not profile_name:
-            st.sidebar.error("Caseworker ID and Full Name are required.")
+            st.error("Caseworker ID and Full Name are required.")
         else:
             with sqlite3.connect(db_path) as connection:
                 upsert_caseworker(
@@ -1766,12 +1887,12 @@ def render() -> None:
                 )
                 connection.commit()
             st.session_state["active_caseworker_id"] = profile_id
-            st.sidebar.success("Caseworker profile saved.")
+            st.success("Caseworker profile saved.")
             st.rerun()
 
     caseworker_id = st.session_state.get("active_caseworker_id", "")
     if not caseworker_id:
-        st.warning("Select or create a caseworker profile in the sidebar to continue.")
+        st.warning("Select or create a caseworker profile to continue.")
         return
 
     if active_caseworker_id and active_caseworker_id == caseworker_id:
@@ -1831,6 +1952,32 @@ def render() -> None:
         unsafe_allow_html=True,
     )
 
+    st.markdown('<span id="email-login-settings" class="cw-anchor-target"></span>', unsafe_allow_html=True)
+    with st.expander("Email Login and Delivery Settings", expanded=False):
+        es1, es2, es3 = st.columns([1, 1, 1])
+        smtp_host = es1.text_input("SMTP Host", value=os.getenv("FUTURE_PATH_SMTP_HOST", "")).strip()
+        smtp_port = int(
+            es1.number_input(
+                "SMTP Port",
+                min_value=1,
+                max_value=65535,
+                value=int(os.getenv("FUTURE_PATH_SMTP_PORT", "587")),
+                step=1,
+            )
+        )
+        smtp_use_tls = es1.checkbox("Use STARTTLS", value=True)
+        smtp_username = es2.text_input("SMTP Username", value=os.getenv("FUTURE_PATH_SMTP_USERNAME", "")).strip()
+        smtp_password = es2.text_input(
+            "SMTP Password",
+            type="password",
+            value=os.getenv("FUTURE_PATH_SMTP_PASSWORD", ""),
+        )
+        smtp_sender = es3.text_input(
+            "From Email",
+            value=os.getenv("FUTURE_PATH_SMTP_FROM", "no-reply@futurepath.local"),
+        ).strip()
+        es3.caption("These settings are used for Send Now via SMTP in Outreach Email Queue.")
+
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown(
@@ -1881,6 +2028,7 @@ def render() -> None:
     left, right = st.columns([1.55, 1])
 
     with left:
+        st.markdown('<span id="caseload-overview" class="cw-anchor-target"></span>', unsafe_allow_html=True)
         st.markdown("### High-Risk Alerts")
         if alerts_df.empty:
             st.success("No high-risk alerts in your active caseload.")
@@ -1955,6 +2103,7 @@ def render() -> None:
                 st.rerun()
 
     st.divider()
+    st.markdown('<span id="assigned-youth" class="cw-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Assigned Youth")
     if my_cases_df.empty:
         st.info("You do not have any active assigned cases yet.")
@@ -2026,178 +2175,256 @@ def render() -> None:
     with sqlite3.connect(db_path) as connection:
         candidate_intakes_df = load_promotable_candidate_intakes(connection)
 
+    st.markdown('<span id="candidate-promotion" class="cw-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Candidate Intake Promotion")
     st.markdown('<div class="cw-section-card">', unsafe_allow_html=True)
-    st.write("Use candidate intake first when a teen does not have a full profile yet, then promote that completed intake into an active youth record.")
+    st.write("Candidates are added to this queue as soon as an ID is generated. Promotion is enabled after intake status becomes completed.")
 
     if candidate_intakes_df.empty:
-        st.info("No completed candidate intakes are ready for promotion yet.")
+        st.info("No candidates are in queue yet.")
     else:
         candidate_intakes_df = candidate_intakes_df.copy()
-        candidate_intakes_df["display_label"] = candidate_intakes_df.apply(
-            lambda row: (
-                f"{row['candidate_profile_id']} | Top Need: {row['top_need_category']} | "
-                f"Completed: {str(row['completed_at'] or row['started_at'])[:10]} | "
-                f"Assigned Resources: {int(row['assignment_count'])}"
+        candidate_intakes_df["Session Status"] = candidate_intakes_df["session_status"].astype(str).str.replace("_", " ").str.title()
+        candidate_intakes_df["Last Activity"] = (
+            candidate_intakes_df["completed_at"].fillna(candidate_intakes_df["started_at"]).astype(str).str.slice(0, 10)
+        )
+        candidate_intakes_df["Assigned Resources"] = candidate_intakes_df["assignment_count"].fillna(0).astype(int)
+
+        st.markdown("#### Candidate Queue")
+        st.dataframe(
+            candidate_intakes_df[["candidate_name", "candidate_profile_id", "Session Status", "top_need_category", "Last Activity", "Assigned Resources"]].rename(
+                columns={
+                    "candidate_name": "Candidate Name",
+                    "candidate_profile_id": "Candidate ID",
+                    "top_need_category": "Top Need",
+                }
             ),
-            axis=1,
+            hide_index=True,
+            width="stretch",
         )
 
-        selected_candidate_label = st.selectbox(
-            "Completed Candidate Intake",
-            options=candidate_intakes_df["display_label"].tolist(),
-            key="candidate_promotion_select",
+        st.markdown("#### Update Candidate Name")
+        name_options = [
+            f"{str(row['candidate_name'])} ({str(row['candidate_profile_id'])})"
+            for _, row in candidate_intakes_df.iterrows()
+        ]
+        selected_name_option = st.selectbox(
+            "Candidate",
+            options=name_options,
+            key="candidate_name_editor_select",
         )
-        selected_candidate_row = candidate_intakes_df[
-            candidate_intakes_df["display_label"] == selected_candidate_label
-        ].iloc[0]
-        selected_candidate_id = str(selected_candidate_row["candidate_profile_id"])
-        selected_intake_session_id = str(selected_candidate_row["intake_session_id"])
+        selected_name_candidate_id = selected_name_option.rsplit("(", 1)[-1].rstrip(")").strip()
 
         with sqlite3.connect(db_path) as connection:
-            candidate_answers = load_candidate_intake_answers(connection, selected_intake_session_id)
-            suggested_youth_id = generate_next_youth_id(connection)
+            current_first_name, current_last_name = load_candidate_profile_names(connection, selected_name_candidate_id)
 
-        inferred_defaults = build_profile_defaults_from_answers(candidate_answers)
+        name_col1, name_col2, name_col3 = st.columns([1, 1, 0.8])
+        with name_col1:
+            edited_first_name = st.text_input(
+                "First Name",
+                value=current_first_name,
+                key=f"candidate_name_edit_first_{selected_name_candidate_id}",
+            )
+        with name_col2:
+            edited_last_name = st.text_input(
+                "Last Name",
+                value=current_last_name,
+                key=f"candidate_name_edit_last_{selected_name_candidate_id}",
+            )
+        with name_col3:
+            save_name_clicked = st.button(
+                "Save Name",
+                key=f"candidate_name_save_btn_{selected_name_candidate_id}",
+                use_container_width=True,
+            )
 
-        overview_col, answers_col = st.columns([1.1, 1])
-        with overview_col:
-            st.markdown("#### Promotion Details")
-            st.write(f"Candidate ID: {selected_candidate_id}")
-            st.write(f"Intake Session: {selected_intake_session_id}")
-            st.write(f"Top Need Category: {selected_candidate_row['top_need_category']}")
-            st.write(f"Suggested Youth ID: {suggested_youth_id}")
-
-        with answers_col:
-            st.markdown("#### Intake Summary")
-            if candidate_answers:
-                summary_rows = pd.DataFrame(
-                    [
-                        {
-                            "Question": key.replace("_", " ").title(),
-                            "Answer": value.replace("_", " ").title(),
-                        }
-                        for key, value in candidate_answers.items()
-                    ]
+        if save_name_clicked:
+            with sqlite3.connect(db_path) as connection:
+                save_candidate_profile_name(
+                    connection,
+                    selected_name_candidate_id,
+                    edited_first_name,
+                    edited_last_name,
                 )
-                st.dataframe(summary_rows, hide_index=True, width="stretch")
-            else:
-                st.caption("No saved answers found for this candidate intake.")
+                connection.commit()
+            st.success(f"Updated name for {selected_name_candidate_id}.")
+            st.rerun()
 
-        with st.form(f"promote_candidate_{selected_candidate_id}"):
-            p1, p2, p3 = st.columns(3)
-            with p1:
-                first_name = st.text_input("First Name", key=f"promote_first_name_{selected_candidate_id}")
-                age = int(
-                    st.number_input(
-                        "Age",
-                        min_value=13,
-                        max_value=24,
-                        value=17,
-                        step=1,
-                        key=f"promote_age_{selected_candidate_id}",
+        completed_candidate_df = candidate_intakes_df[
+            candidate_intakes_df["session_status"].astype(str).str.lower() == "completed"
+        ].copy()
+
+        if completed_candidate_df.empty:
+            st.info("No completed candidate intakes are ready for promotion yet.")
+        else:
+            completed_candidate_df["display_label"] = completed_candidate_df.apply(
+                lambda row: (
+                    f"{row['candidate_name']} ({row['candidate_profile_id']}) | Top Need: {row['top_need_category']} | "
+                    f"Completed: {str(row['completed_at'] or row['started_at'])[:10]} | "
+                    f"Assigned Resources: {int(row['assignment_count'])}"
+                ),
+                axis=1,
+            )
+
+            st.markdown("#### Promote Completed Candidate")
+
+            selected_candidate_label = st.selectbox(
+                "Completed Candidate Intake",
+                options=completed_candidate_df["display_label"].tolist(),
+                key="candidate_promotion_select",
+            )
+            selected_candidate_row = completed_candidate_df[
+                completed_candidate_df["display_label"] == selected_candidate_label
+            ].iloc[0]
+            selected_candidate_id = str(selected_candidate_row["candidate_profile_id"])
+            selected_intake_session_id = str(selected_candidate_row["intake_session_id"])
+
+            with sqlite3.connect(db_path) as connection:
+                candidate_answers = load_candidate_intake_answers(connection, selected_intake_session_id)
+                suggested_youth_id = generate_next_youth_id(connection)
+
+            inferred_defaults = build_profile_defaults_from_answers(candidate_answers)
+
+            overview_col, answers_col = st.columns([1.1, 1])
+            with overview_col:
+                st.markdown("#### Promotion Details")
+                st.write(f"Candidate Name: {selected_candidate_row['candidate_name']}")
+                st.write(f"Candidate ID: {selected_candidate_id}")
+                st.write(f"Intake Session: {selected_intake_session_id}")
+                st.write(f"Top Need Category: {selected_candidate_row['top_need_category']}")
+                st.write(f"Suggested Youth ID: {suggested_youth_id}")
+
+            with answers_col:
+                st.markdown("#### Intake Summary")
+                if candidate_answers:
+                    summary_rows = pd.DataFrame(
+                        [
+                            {
+                                "Question": key.replace("_", " ").title(),
+                                "Answer": value.replace("_", " ").title(),
+                            }
+                            for key, value in candidate_answers.items()
+                        ]
                     )
-                )
-                county = st.selectbox(
-                    "County",
-                    options=COUNTY_OPTIONS,
-                    index=0,
-                    key=f"promote_county_{selected_candidate_id}",
-                )
-            with p2:
-                last_name = st.text_input("Last Name", key=f"promote_last_name_{selected_candidate_id}")
-                youth_id = st.text_input(
-                    "Youth ID",
-                    value=suggested_youth_id,
-                    key=f"promote_youth_id_{selected_candidate_id}",
-                )
-                education = st.selectbox(
-                    "Education",
-                    options=EDUCATION_OPTIONS,
-                    index=_option_index(EDUCATION_OPTIONS, str(inferred_defaults["education"])),
-                    key=f"promote_education_{selected_candidate_id}",
-                )
-            with p3:
-                assign_to_me = st.checkbox("Assign case to me now", value=True, key=f"promote_assign_{selected_candidate_id}")
-                case_priority = st.selectbox(
-                    "Case Priority",
-                    options=["High", "Medium", "Low"],
-                    index=1,
-                    key=f"promote_priority_{selected_candidate_id}",
-                )
-                mentor_status = st.selectbox(
-                    "Mentor Status",
-                    options=MENTOR_STATUS_OPTIONS,
-                    index=_option_index(MENTOR_STATUS_OPTIONS, str(inferred_defaults["mentor_status"])),
-                    key=f"promote_mentor_{selected_candidate_id}",
-                )
+                    st.dataframe(summary_rows, hide_index=True, width="stretch")
+                else:
+                    st.caption("No saved answers found for this candidate intake.")
 
-            q1, q2, q3, q4 = st.columns(4)
-            with q1:
-                employment = st.selectbox(
-                    "Employment",
-                    options=EMPLOYMENT_OPTIONS,
-                    index=_option_index(EMPLOYMENT_OPTIONS, str(inferred_defaults["employment"])),
-                    key=f"promote_employment_{selected_candidate_id}",
-                )
-            with q2:
-                housing = st.selectbox(
-                    "Housing",
-                    options=HOUSING_OPTIONS,
-                    index=_option_index(HOUSING_OPTIONS, str(inferred_defaults["housing"])),
-                    key=f"promote_housing_{selected_candidate_id}",
-                )
-            with q3:
-                placement_count = int(
-                    st.number_input(
-                        "Placement Count",
-                        min_value=0,
-                        max_value=20,
-                        value=int(inferred_defaults["placement_count"]),
-                        step=1,
-                        key=f"promote_placement_{selected_candidate_id}",
+            with st.form(f"promote_candidate_{selected_candidate_id}"):
+                p1, p2, p3 = st.columns(3)
+                with p1:
+                    first_name = st.text_input("First Name", key=f"promote_first_name_{selected_candidate_id}")
+                    age = int(
+                        st.number_input(
+                            "Age",
+                            min_value=13,
+                            max_value=24,
+                            value=17,
+                            step=1,
+                            key=f"promote_age_{selected_candidate_id}",
+                        )
                     )
-                )
-            with q4:
-                prior_homelessness = st.selectbox(
-                    "Prior Homelessness",
-                    options=PRIOR_HOMELESSNESS_OPTIONS,
-                    index=_option_index(PRIOR_HOMELESSNESS_OPTIONS, str(inferred_defaults["prior_homelessness"])),
-                    key=f"promote_prior_homelessness_{selected_candidate_id}",
-                )
-
-            submitted = st.form_submit_button("Promote Candidate To Teen", type="primary", use_container_width=True)
-
-        if submitted:
-            try:
-                with sqlite3.connect(db_path) as connection:
-                    promote_candidate_to_youth(
-                        connection,
-                        candidate_profile_id=selected_candidate_id,
-                        youth_id=youth_id,
-                        age=age,
-                        county=county,
-                        education=education,
-                        employment=employment,
-                        housing=housing,
-                        mentor_status=mentor_status,
-                        placement_count=placement_count,
-                        prior_homelessness=prior_homelessness,
-                        first_name=first_name,
-                        last_name=last_name,
-                        caseworker_id=caseworker_id if assign_to_me else None,
-                        case_priority=case_priority,
+                    county = st.selectbox(
+                        "County",
+                        options=COUNTY_OPTIONS,
+                        index=0,
+                        key=f"promote_county_{selected_candidate_id}",
                     )
-                    connection.commit()
-                st.session_state["selected_youth_id"] = youth_id.strip()
-                st.success(f"Candidate {selected_candidate_id} promoted to youth profile {youth_id.strip()}.")
-                st.rerun()
-            except ValueError as exc:
-                st.error(str(exc))
+                with p2:
+                    last_name = st.text_input("Last Name", key=f"promote_last_name_{selected_candidate_id}")
+                    youth_id = st.text_input(
+                        "Youth ID",
+                        value=suggested_youth_id,
+                        key=f"promote_youth_id_{selected_candidate_id}",
+                    )
+                    education = st.selectbox(
+                        "Education",
+                        options=EDUCATION_OPTIONS,
+                        index=_option_index(EDUCATION_OPTIONS, str(inferred_defaults["education"])),
+                        key=f"promote_education_{selected_candidate_id}",
+                    )
+                with p3:
+                    assign_to_me = st.checkbox("Assign case to me now", value=True, key=f"promote_assign_{selected_candidate_id}")
+                    case_priority = st.selectbox(
+                        "Case Priority",
+                        options=["High", "Medium", "Low"],
+                        index=1,
+                        key=f"promote_priority_{selected_candidate_id}",
+                    )
+                    mentor_status = st.selectbox(
+                        "Mentor Status",
+                        options=MENTOR_STATUS_OPTIONS,
+                        index=_option_index(MENTOR_STATUS_OPTIONS, str(inferred_defaults["mentor_status"])),
+                        key=f"promote_mentor_{selected_candidate_id}",
+                    )
+
+                q1, q2, q3, q4 = st.columns(4)
+                with q1:
+                    employment = st.selectbox(
+                        "Employment",
+                        options=EMPLOYMENT_OPTIONS,
+                        index=_option_index(EMPLOYMENT_OPTIONS, str(inferred_defaults["employment"])),
+                        key=f"promote_employment_{selected_candidate_id}",
+                    )
+                with q2:
+                    housing = st.selectbox(
+                        "Housing",
+                        options=HOUSING_OPTIONS,
+                        index=_option_index(HOUSING_OPTIONS, str(inferred_defaults["housing"])),
+                        key=f"promote_housing_{selected_candidate_id}",
+                    )
+                with q3:
+                    placement_count = int(
+                        st.number_input(
+                            "Placement Count",
+                            min_value=0,
+                            max_value=20,
+                            value=int(inferred_defaults["placement_count"]),
+                            step=1,
+                            key=f"promote_placement_{selected_candidate_id}",
+                        )
+                    )
+                with q4:
+                    prior_homelessness = st.selectbox(
+                        "Prior Homelessness",
+                        options=PRIOR_HOMELESSNESS_OPTIONS,
+                        index=_option_index(PRIOR_HOMELESSNESS_OPTIONS, str(inferred_defaults["prior_homelessness"])),
+                        key=f"promote_prior_homelessness_{selected_candidate_id}",
+                    )
+
+                submitted = st.form_submit_button("Promote Candidate To Teen", type="primary", use_container_width=True)
+
+            if submitted:
+                try:
+                    with sqlite3.connect(db_path) as connection:
+                        promote_candidate_to_youth(
+                            connection,
+                            candidate_profile_id=selected_candidate_id,
+                            youth_id=youth_id,
+                            age=age,
+                            county=county,
+                            education=education,
+                            employment=employment,
+                            housing=housing,
+                            mentor_status=mentor_status,
+                            placement_count=placement_count,
+                            prior_homelessness=prior_homelessness,
+                            first_name=first_name,
+                            last_name=last_name,
+                            caseworker_id=caseworker_id if assign_to_me else None,
+                            case_priority=case_priority,
+                        )
+                        connection.commit()
+                    st.session_state["selected_youth_id"] = youth_id.strip()
+                    st.success(f"Candidate {selected_candidate_id} promoted to youth profile {youth_id.strip()}.")
+                    st.rerun()
+                except ValueError as exc:
+                    st.error(str(exc))
 
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
+    st.markdown('<span id="case-workspace" class="cw-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Case Management Workspace")
 
     selection_mode_col, selection_query_col = st.columns([1, 2])
@@ -2324,6 +2551,7 @@ def render() -> None:
     insights_col, actions_col = st.columns([1.05, 1])
 
     with insights_col:
+        st.markdown('<span id="ai-results" class="cw-anchor-target"></span>', unsafe_allow_html=True)
         st.subheader("AI Assistant Results")
         with sqlite3.connect(db_path) as connection:
             risk_df = load_latest_risk(connection, selected_youth_id)
@@ -2351,6 +2579,7 @@ def render() -> None:
             st.dataframe(intake_answers_df[["question_text", "answer_value", "answered_at"]], hide_index=True, width="stretch")
 
     with actions_col:
+        st.markdown('<span id="resource-assignment" class="cw-anchor-target"></span>', unsafe_allow_html=True)
         st.subheader("Resource Assignment")
         approved_ids: list[str] = []
         rejected_ids: list[str] = []
@@ -2583,6 +2812,7 @@ def render() -> None:
             st.dataframe(notes_df, hide_index=True, width="stretch")
 
     st.divider()
+    st.markdown('<span id="outreach-queue" class="cw-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Outreach Email Queue")
     with sqlite3.connect(db_path) as connection:
         outreach_df = load_outreach_emails(connection, selected_youth_id)
@@ -2658,6 +2888,7 @@ def render() -> None:
             st.caption("No pending drafts. All outreach emails are already marked sent.")
 
     st.divider()
+    st.markdown('<span id="follow-up-tracker" class="cw-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Follow-Up Tracker")
     fu1, fu2 = st.columns([1, 1])
     follow_up_date = fu1.date_input("Follow-Up Date", value=date.today(), key="followup_tracker_date")
