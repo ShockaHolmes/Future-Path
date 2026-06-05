@@ -29,6 +29,19 @@ AI_ASSISTANT_URL = "http://localhost:8503"
 CASEWORKER_URL = "http://localhost:8504"
 YOUTH_DASHBOARD_URL = "http://localhost:8505"
 
+QUESTION_AUDIO_FILES: dict[str, str] = {
+    "housing_status": "Assets/audio/Housing.mp3",
+    "employment_status": "Assets/audio/Employment.mp3",
+    "education_status": "Assets/audio/Education.mp3",
+    "transportation_access": "Assets/audio/Transportation.mp3",
+    "food_access": "Assets/audio/Food-Access.mp3",
+    "health_wellness_need": "Assets/audio/Health-Wellness.mp3",
+    "documents_status": "Assets/audio/Key-Documents.mp3",
+    "support_system": "Assets/audio/Support-System.mp3",
+    "safety_concern": "Assets/audio/Safety-Concerns.mp3",
+    "primary_need": "Assets/audio/Primary-Need.mp3",
+}
+
 
 def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
     row = connection.execute(
@@ -56,6 +69,7 @@ def initialize_state() -> None:
         "assistant_assignment_result": None,
         "assistant_error": "",
         "assistant_selected_choice": "",
+        "assistant_audio_autoplay_index": -1,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -72,6 +86,29 @@ def reset_assistant_state() -> None:
     st.session_state["assistant_assignment_result"] = None
     st.session_state["assistant_error"] = ""
     st.session_state["assistant_selected_choice"] = ""
+    st.session_state["assistant_audio_autoplay_index"] = -1
+
+
+@st.cache_data(show_spinner=False)
+def load_audio_bytes(audio_file_path: str) -> bytes:
+    return Path(audio_file_path).read_bytes()
+
+
+def render_question_audio(question_key: str, current_index: int) -> None:
+    audio_file = QUESTION_AUDIO_FILES.get(question_key)
+    if not audio_file:
+        return
+
+    audio_path = PROJECT_ROOT / audio_file
+    if not audio_path.exists():
+        st.caption("Question audio file is not available.")
+        return
+
+    should_autoplay = st.session_state.get("assistant_audio_autoplay_index", -1) != current_index
+    if should_autoplay:
+        st.session_state["assistant_audio_autoplay_index"] = current_index
+
+    st.audio(load_audio_bytes(str(audio_path)), format="audio/mp3", autoplay=should_autoplay)
 
 
 def render_notice() -> None:
@@ -1064,6 +1101,8 @@ def render_question_input(connection: sqlite3.Connection, db_path: Path) -> None
         unsafe_allow_html=True,
     )
 
+    render_question_audio(key, current_index)
+
     current_choice = st.session_state.get("assistant_selected_choice", question["options"][0])
     choice_value = current_choice if current_choice in question["options"] else question["options"][0]
 
@@ -1356,6 +1395,7 @@ def render() -> None:
             st.session_state["assistant_answers"] = {}
             st.session_state["assistant_summary_needs"] = []
             st.session_state["assistant_assignment_result"] = None
+            st.session_state["assistant_audio_autoplay_index"] = -1
 
             with sqlite3.connect(db_path) as connection:
                 connection.execute("PRAGMA foreign_keys = ON")
