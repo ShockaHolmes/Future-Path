@@ -17,7 +17,9 @@ from match_youth_to_resources import build_matches, write_matches
 
 DEFAULT_RAW_PUBLIC = Path("data/raw/synthetic_youth_transition_data.csv")
 DEFAULT_RAW_CASEWORKER = Path("data/raw/synthetic_youth_caseworker_data.csv")
-DEFAULT_RAW_RESOURCE = Path("data/raw/future_path_delaware_youth_resources.csv")
+DEFAULT_RAW_RESOURCE = Path("data/raw/future_path_delaware_youth_resources_enriched_contacts.csv")
+if not DEFAULT_RAW_RESOURCE.exists():
+    DEFAULT_RAW_RESOURCE = Path("data/raw/future_path_delaware_youth_resources.csv")
 DEFAULT_CLEAN_PUBLIC = Path("data/clean/synthetic_youth_transition_data_clean.csv")
 DEFAULT_CLEAN_CASEWORKER = Path("data/clean/synthetic_youth_caseworker_data_clean.csv")
 DEFAULT_CLEAN_RESOURCE = Path("data/clean/future_path_delaware_youth_resources_clean.csv")

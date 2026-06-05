@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS resources (
     description TEXT NOT NULL,
     referral_method TEXT NOT NULL,
     contact_phone TEXT,
+    contact_email TEXT,
     website TEXT,
     ai_match_rules TEXT,
     default_priority TEXT NOT NULL CHECK (default_priority IN ('High', 'Medium', 'Low')),

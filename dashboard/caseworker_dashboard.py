@@ -32,6 +32,7 @@ from candidate_promotion import (
     promote_candidate_to_youth,
 )
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
+from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from future_path_ai_intake import ensure_intake_tables
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
@@ -1064,6 +1065,10 @@ def inject_caseworker_dashboard_styles() -> None:
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+        """
+        + theme_css_variables()
+        + theme_component_styles()
+        + """
 
         .stApp {
             background:
@@ -1383,6 +1388,166 @@ def inject_caseworker_dashboard_styles() -> None:
                 text-align: left;
             }
         }
+
+        .stApp {
+            background:
+                radial-gradient(circle at 8% 4%, var(--fp-app-overlay-primary) 0%, rgba(15, 91, 215, 0.0) 35%),
+                radial-gradient(circle at 92% 9%, var(--fp-app-overlay-accent) 0%, rgba(239, 68, 68, 0.0) 30%),
+                linear-gradient(180deg, var(--fp-app-background) 0%, var(--fp-app-background-alt) 100%);
+            color: var(--fp-text-primary);
+        }
+
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, var(--fp-sidebar-background) 0%, var(--fp-sidebar-background-alt) 100%) !important;
+            color: var(--fp-sidebar-text) !important;
+            border-right: 1px solid var(--fp-sidebar-border) !important;
+        }
+
+        [data-testid="stSidebar"] *,
+        .stSidebar,
+        .stSidebar * {
+            color: var(--fp-sidebar-text) !important;
+        }
+
+        [data-testid="stSidebar"] div[data-baseweb="input"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="select"] > div,
+        [data-testid="stSidebar"] div[data-baseweb="textarea"] > div,
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="input"] > div,
+        div[data-baseweb="textarea"] > div {
+            background: var(--fp-input-background) !important;
+            border: 1px solid var(--fp-input-border) !important;
+            color: var(--fp-input-text) !important;
+        }
+
+        div[data-baseweb="select"] *,
+        div[data-baseweb="input"] input,
+        div[data-baseweb="textarea"] textarea,
+        .stSelectbox div[data-baseweb="select"] span,
+        .stMultiSelect div[data-baseweb="select"] span {
+            color: var(--fp-input-text) !important;
+        }
+
+        .cw-step-banner,
+        .cw-shell,
+        .cw-metric-card,
+        .cw-alert-wrap,
+        .cw-section-card,
+        .stDataFrame {
+            border-color: var(--fp-border-primary) !important;
+        }
+
+        .cw-step-banner {
+            background: linear-gradient(180deg, var(--fp-surface-tertiary) 0%, var(--fp-surface-secondary) 100%) !important;
+        }
+
+        .cw-shell {
+            background: linear-gradient(180deg, var(--fp-surface-primary) 0%, var(--fp-surface-secondary) 100%) !important;
+            box-shadow: 0 14px 38px var(--fp-shadow-soft) !important;
+        }
+
+        .cw-brandbar {
+            border-bottom: 1px solid var(--fp-border-secondary) !important;
+        }
+
+        .cw-metric-card,
+        .cw-section-card {
+            background: var(--fp-surface-primary) !important;
+        }
+
+        .cw-alert-wrap {
+            background: linear-gradient(180deg, var(--fp-danger-background) 0%, var(--fp-surface-primary) 100%) !important;
+        }
+
+        .cw-step-title,
+        h1, h2, h3, h4,
+        .cw-brand-left,
+        .cw-metric-value,
+        .cw-activity-title,
+        [data-testid="stMetricValue"] *,
+        [data-testid="stMetricLabel"] * {
+            color: var(--fp-heading) !important;
+        }
+
+        .cw-brand-right,
+        .cw-metric-label,
+        .cw-metric-link,
+        .cw-table-subtle,
+        .cw-activity-meta,
+        .stSelectbox label,
+        .stMultiSelect label,
+        .stDateInput label,
+        .stTextInput label,
+        .stTextArea label,
+        .stCheckbox label,
+        .stNumberInput label,
+        .stRadio label,
+        .stCaption,
+        .stMarkdown p,
+        .stMarkdown li,
+        .stText {
+            color: var(--fp-text-secondary) !important;
+        }
+
+        .cw-alert-title,
+        .cw-bullets {
+            color: var(--fp-danger-text) !important;
+        }
+
+        .cw-activity-item {
+            border-bottom: 1px solid var(--fp-border-secondary) !important;
+        }
+
+        .stButton > button {
+            background: var(--fp-button-background) !important;
+            color: var(--fp-button-text) !important;
+            border: 1px solid var(--fp-button-border) !important;
+        }
+
+        .stButton > button:hover {
+            background: var(--fp-button-hover) !important;
+            color: var(--fp-button-text) !important;
+        }
+
+        .stButton > button[kind="primary"] {
+            background: var(--fp-button-primary-background) !important;
+            color: var(--fp-button-primary-text) !important;
+            border-color: var(--fp-button-primary-border) !important;
+        }
+
+        .stButton > button[kind="primary"]:hover {
+            background: var(--fp-button-primary-hover) !important;
+            color: var(--fp-button-primary-text) !important;
+        }
+
+        [data-testid="stDataFrame"] {
+            --gdg-bg-cell: var(--fp-data-cell-bg);
+            --gdg-bg-cell-medium: var(--fp-surface-secondary);
+            --gdg-bg-header: var(--fp-data-header-bg);
+            --gdg-bg-header-has-focus: var(--fp-data-header-focus-bg);
+            --gdg-border-color: var(--fp-border-primary);
+            --gdg-color: var(--fp-text-primary);
+            --gdg-text-dark: var(--fp-text-primary);
+            --gdg-text-medium: var(--fp-text-secondary);
+            --gdg-text-light: var(--fp-text-muted);
+            --gdg-accent-color: var(--fp-accent-blue);
+        }
+
+        [data-testid="stDataFrame"] canvas,
+        [data-testid="stDataFrame"] [role="grid"],
+        .stDataFrame [role="gridcell"] {
+            background: var(--fp-data-cell-bg) !important;
+        }
+
+        .stDataFrame [role="grid"],
+        .stDataFrame [role="columnheader"],
+        .stDataFrame [role="gridcell"] {
+            color: var(--fp-text-primary) !important;
+        }
+
+        .stDataFrame [role="columnheader"] {
+            background-color: var(--fp-data-header-bg) !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1488,7 +1653,7 @@ def render_top_navigation(current_page: str) -> None:
                 st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
                 if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
-                    next_url = switch_dashboard(page_key, current_key=current_page)
+                    next_url = themed_url(switch_dashboard(page_key, current_key=current_page))
                     st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
                     st.stop()
 
@@ -1499,7 +1664,7 @@ def render() -> None:
     inject_caseworker_dashboard_styles()
     st.markdown(
         """
-        <div class="cw-step-banner">
+        <div class="cw-step-banner fp-brand-header">
             <span class="cw-step-title">Caseworker Dashboard</span>
         </div>
         """,
@@ -1508,6 +1673,7 @@ def render() -> None:
     st.caption("Monitor youth caseload, respond to high-risk alerts, and manage daily follow-ups.")
 
     render_top_navigation("caseworker_dashboard")
+    render_theme_toggle()
 
     db_path = Path(st.sidebar.text_input("Database Path", str(DEFAULT_DB_PATH))).expanduser()
     st.sidebar.divider()
@@ -1652,11 +1818,12 @@ def render() -> None:
     st.markdown(
         f"""
         <div class="cw-shell">
-            <div class="cw-brandbar">
+            <div class="cw-brandbar fp-brand-header">
                 <div class="cw-brand-left">Future Path</div>
                 <div class="cw-brand-right">
                     <div><strong>{active_caseworker_name or caseworker_id}</strong></div>
                     <div>Caseworker</div>
+                    <div style="margin-top:8px;">{current_theme_badge_html()}</div>
                 </div>
             </div>
         </div>
@@ -1839,7 +2006,7 @@ def render() -> None:
         st.subheader("Quick Actions")
         st.markdown('<div class="cw-section-card">', unsafe_allow_html=True)
         if st.button("Start Candidate Intake", width="stretch"):
-            next_url = switch_dashboard("ai_assistant", current_key="caseworker_dashboard")
+            next_url = themed_url(switch_dashboard("ai_assistant", current_key="caseworker_dashboard"))
             st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
             st.stop()
         st.caption("Open AI Assistant, choose candidate profile, and complete intake before promotion.")
