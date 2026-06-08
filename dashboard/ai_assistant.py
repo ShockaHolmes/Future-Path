@@ -683,6 +683,7 @@ def inject_ai_assistant_styles() -> None:
                 radial-gradient(circle at 8% 4%, var(--fp-app-overlay-primary) 0%, rgba(17, 98, 220, 0.0) 34%),
                 linear-gradient(180deg, var(--fp-app-background) 0%, var(--fp-app-background-alt) 100%);
             color: var(--fp-text-primary);
+            font-size: 1.04rem;
         }
 
         [data-testid="stSidebar"] {
@@ -767,6 +768,22 @@ def inject_ai_assistant_styles() -> None:
         .stMarkdown li,
         .stCaption {
             color: var(--fp-text-secondary) !important;
+        }
+
+        .ai-kicker,
+        .ai-resource-meta,
+        .assist-resource-row .assist-resource-desc,
+        .assist-chat-strip,
+        .ai-summary-label,
+        .stCaption,
+        .stCaption p {
+            font-size: 0.98rem !important;
+        }
+
+        .ai-option-text,
+        .stMarkdown p,
+        .stMarkdown li {
+            font-size: 1.02rem;
         }
 
         .ai-selection-indicator {

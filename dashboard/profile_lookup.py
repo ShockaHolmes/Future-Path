@@ -476,6 +476,7 @@ def inject_profile_lookup_styles() -> None:
                 radial-gradient(circle at 92% 9%, var(--fp-app-overlay-accent) 0%, rgba(239, 68, 68, 0.0) 30%),
                 linear-gradient(180deg, var(--fp-app-background) 0%, var(--fp-app-background-alt) 100%);
             color: var(--fp-text-primary);
+            font-size: 1.04rem;
         }
 
         [data-testid="stSidebar"] {
@@ -553,6 +554,11 @@ def inject_profile_lookup_styles() -> None:
             color: var(--fp-text-secondary) !important;
         }
 
+        .stCaption,
+        .stCaption p {
+            font-size: 0.98rem !important;
+        }
+
         .pl-section-card {
             background: var(--fp-surface-primary) !important;
         }
@@ -623,8 +629,18 @@ def inject_profile_lookup_styles() -> None:
             --gdg-accent-color: var(--fp-accent-blue);
         }
 
+        .stDataFrame,
+        .stDataFrame [role="grid"] {
+            font-size: 1.04rem;
+        }
+
         [data-testid="stDataFrame"] canvas {
             background: var(--fp-data-cell-bg) !important;
+        }
+
+        .stDataFrame [role="grid"] {
+            background: var(--fp-data-cell-bg) !important;
+            border: 1px solid var(--fp-border-primary);
         }
 
         .stDataFrame [role="grid"],
@@ -635,6 +651,14 @@ def inject_profile_lookup_styles() -> None:
 
         .stDataFrame [role="columnheader"] {
             background-color: var(--fp-data-header-bg) !important;
+            font-size: 1.02rem !important;
+            font-weight: 800 !important;
+        }
+
+        .stDataFrame [role="gridcell"] {
+            background-color: var(--fp-data-cell-bg) !important;
+            font-size: 1.04rem !important;
+            font-weight: 600 !important;
         }
         </style>
         """,
