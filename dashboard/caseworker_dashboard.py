@@ -1490,6 +1490,7 @@ def inject_caseworker_dashboard_styles() -> None:
                 radial-gradient(circle at 92% 9%, var(--fp-app-overlay-accent) 0%, rgba(239, 68, 68, 0.0) 30%),
                 linear-gradient(180deg, var(--fp-app-background) 0%, var(--fp-app-background-alt) 100%);
             color: var(--fp-text-primary);
+            font-size: 1.04rem;
         }
 
         [data-testid="stSidebar"] {
@@ -1596,6 +1597,11 @@ def inject_caseworker_dashboard_styles() -> None:
             color: var(--fp-text-secondary) !important;
         }
 
+        .stCaption,
+        .stCaption p {
+            font-size: 0.98rem !important;
+        }
+
         .cw-alert-title,
         .cw-bullets {
             color: var(--fp-danger-text) !important;
@@ -1640,6 +1646,11 @@ def inject_caseworker_dashboard_styles() -> None:
             --gdg-accent-color: var(--fp-accent-blue);
         }
 
+        .stDataFrame,
+        .stDataFrame [role="grid"] {
+            font-size: 1.04rem;
+        }
+
         [data-testid="stDataFrame"] canvas,
         [data-testid="stDataFrame"] [role="grid"],
         .stDataFrame [role="gridcell"] {
@@ -1654,6 +1665,13 @@ def inject_caseworker_dashboard_styles() -> None:
 
         .stDataFrame [role="columnheader"] {
             background-color: var(--fp-data-header-bg) !important;
+            font-size: 1.02rem !important;
+            font-weight: 800 !important;
+        }
+
+        .stDataFrame [role="gridcell"] {
+            font-size: 1.04rem !important;
+            font-weight: 600 !important;
         }
         </style>
         """,

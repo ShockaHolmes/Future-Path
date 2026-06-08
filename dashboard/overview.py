@@ -579,6 +579,7 @@ def inject_overview_styles() -> None:
             background: var(--fp-app-background);
             color: var(--fp-text-primary);
             font-family: 'Inter', sans-serif;
+            font-size: 1.04rem;
         }
 
         [data-testid="stSidebar"] {
@@ -690,7 +691,7 @@ def inject_overview_styles() -> None:
 
         .overview-subtitle {
             color: var(--fp-text-secondary);
-            font-size: 0.95rem;
+            font-size: 1.02rem;
             margin-top: 4px;
         }
 
@@ -762,29 +763,34 @@ def inject_overview_styles() -> None:
 
         .overview-panel-title {
             color: var(--fp-heading);
-            font-size: 1rem;
+            font-size: 1.16rem;
             font-weight: 800;
             margin-bottom: 10px;
         }
 
         .overview-panel-caption {
             color: var(--fp-text-secondary);
-            font-size: 0.82rem;
+            font-size: 0.94rem;
             margin-top: 8px;
         }
 
         .overview-link {
             color: var(--fp-accent-blue);
             font-weight: 700;
-            font-size: 0.88rem;
+            font-size: 1rem;
             margin-top: 6px;
         }
 
         .overview-helper-text {
             color: var(--fp-text-secondary);
-            font-size: 0.88rem;
+            font-size: 0.98rem;
             font-weight: 600;
             margin-top: 0.1rem;
+        }
+
+        .stCaption,
+        .stCaption p {
+            font-size: 0.98rem !important;
         }
 
         .main .stTextInput label,
@@ -1177,11 +1183,29 @@ def inject_overview_styles() -> None:
         .stDataFrame,
         .stDataFrame [role="grid"] {
             border-radius: 14px;
+            font-size: 1.04rem;
         }
 
         .stDataFrame [role="gridcell"],
         .stDataFrame [role="columnheader"] {
             color: var(--fp-text-primary) !important;
+        }
+
+        .stDataFrame [role="grid"] {
+            background: var(--fp-data-cell-bg) !important;
+            border: 1px solid var(--fp-border-primary);
+        }
+
+        .stDataFrame [role="gridcell"] {
+            background-color: var(--fp-data-cell-bg) !important;
+            font-size: 1.04rem !important;
+            font-weight: 600 !important;
+        }
+
+        .stDataFrame [role="columnheader"] {
+            background-color: var(--fp-data-header-bg) !important;
+            font-size: 1.02rem !important;
+            font-weight: 800 !important;
         }
 
         [data-testid="stDataFrame"] {
@@ -1195,6 +1219,10 @@ def inject_overview_styles() -> None:
             --gdg-text-medium: var(--fp-text-secondary);
             --gdg-text-light: var(--fp-text-muted);
             --gdg-accent-color: var(--fp-accent-blue);
+        }
+
+        [data-testid="stDataFrame"] canvas {
+            background: var(--fp-data-cell-bg) !important;
         }
 
         @media (max-width: 1100px) {

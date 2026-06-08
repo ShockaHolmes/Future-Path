@@ -330,6 +330,7 @@ def inject_styles() -> None:
         .stApp {
             background: linear-gradient(180deg, var(--fp-app-background) 0%, var(--fp-app-background-alt) 100%);
             color: var(--fp-text-primary);
+            font-size: 1.04rem;
         }
 
         [data-testid='stSidebar'] {
@@ -383,6 +384,11 @@ def inject_styles() -> None:
         .stMarkdown p,
         .stMarkdown li {
             color: var(--fp-text-secondary) !important;
+        }
+
+        .stCaption,
+        .stCaption p {
+            font-size: 0.98rem !important;
         }
 
         .status-recommended { background: var(--fp-button-background) !important; color: var(--fp-accent-blue) !important; border: 1px solid var(--fp-button-border) !important; }
@@ -451,6 +457,45 @@ def inject_styles() -> None:
         [data-testid='stDataFrame'] [role='columnheader'],
         [data-testid='stDataFrame'] [role='gridcell'] {
             color: var(--fp-text-primary) !important;
+        }
+
+        [data-testid='stDataFrame'] {
+            --gdg-bg-cell: var(--fp-data-cell-bg);
+            --gdg-bg-cell-medium: var(--fp-surface-secondary);
+            --gdg-bg-header: var(--fp-data-header-bg);
+            --gdg-bg-header-has-focus: var(--fp-data-header-focus-bg);
+            --gdg-border-color: var(--fp-border-primary);
+            --gdg-color: var(--fp-text-primary);
+            --gdg-text-dark: var(--fp-text-primary);
+            --gdg-text-medium: var(--fp-text-secondary);
+            --gdg-text-light: var(--fp-text-muted);
+            --gdg-accent-color: var(--fp-accent-blue);
+        }
+
+        .stDataFrame,
+        .stDataFrame [role='grid'] {
+            font-size: 1.04rem;
+        }
+
+        [data-testid='stDataFrame'] canvas {
+            background: var(--fp-data-cell-bg) !important;
+        }
+
+        .stDataFrame [role='grid'] {
+            background: var(--fp-data-cell-bg) !important;
+            border: 1px solid var(--fp-border-primary);
+        }
+
+        .stDataFrame [role='columnheader'] {
+            background-color: var(--fp-data-header-bg) !important;
+            font-size: 1.02rem !important;
+            font-weight: 800 !important;
+        }
+
+        .stDataFrame [role='gridcell'] {
+            background-color: var(--fp-data-cell-bg) !important;
+            font-size: 1.04rem !important;
+            font-weight: 600 !important;
         }
 
         @media (max-width: 720px) {
