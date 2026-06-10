@@ -123,15 +123,19 @@ Future-Path/
 
 ### Double-Click Launcher
 
-On macOS, double-click [start.command](start.command) to migrate the database, run the pipeline, and open the Overview dashboard.
+On macOS, double-click [start.command](start.command) to migrate the database, run the pipeline, start all dashboard servers, and open the Overview dashboard.
 You can also double-click [Future Path.app](Future%20Path.app) for the same behavior from Finder.
 
 Current launcher behavior:
-- Starts Overview first at `http://localhost:8501`
-- Starts other dashboards only when you click dashboard navigation buttons
-- Stops previously open dashboard servers as you switch views
+- Starts all dashboards up front (ports `8601`-`8605`) so switching is immediate
+- Opens Overview first at `http://localhost:8601`
+- Preloads all dashboard URLs at startup so pages are ready in the browser
+- Keeps all dashboard servers running while the app session is active
 - Automatically stops dashboard servers after all dashboard tabs/windows are closed
 - Also stops all dashboard servers when you end the launcher session (Ctrl+C)
+
+Optional: run `./start.command <dashboard_key>` to open a different dashboard first.
+Valid keys: `overview`, `profile_lookup`, `ai_assistant`, `caseworker_dashboard`, `youth_dashboard`.
 
 ### 1. Install Dependencies
 
@@ -237,7 +241,7 @@ python3 src/run_data_pipeline.py
 - If timing is tight, show the most recent successful pipeline terminal output from your prep run.
 
 3. 0:15-0:25 | Open dashboard
-- In browser, show Overview at `http://localhost:8501`.
+- In browser, show Overview at `http://localhost:8601`.
 - Narration: "This dashboard gives operational visibility across youth outcomes and support activity."
 
 4. 0:25-0:33 | Show risk score
