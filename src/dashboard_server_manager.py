@@ -16,32 +16,32 @@ DASHBOARD_CONFIG: dict[str, dict[str, str | int]] = {
     "overview": {
         "label": "Overview",
         "script": "dashboard/overview.py",
-        "url": "http://localhost:8501",
-        "port": 8501,
+        "url": "http://localhost:8601",
+        "port": 8601,
     },
     "profile_lookup": {
         "label": "Youth Profiles",
         "script": "dashboard/profile_lookup.py",
-        "url": "http://localhost:8502",
-        "port": 8502,
+        "url": "http://localhost:8602",
+        "port": 8602,
     },
     "ai_assistant": {
         "label": "AI Assistant",
         "script": "dashboard/ai_assistant.py",
-        "url": "http://localhost:8503",
-        "port": 8503,
+        "url": "http://localhost:8603",
+        "port": 8603,
     },
     "caseworker_dashboard": {
         "label": "Caseworker Dashboard",
         "script": "dashboard/caseworker_dashboard.py",
-        "url": "http://localhost:8504",
-        "port": 8504,
+        "url": "http://localhost:8604",
+        "port": 8604,
     },
     "youth_dashboard": {
         "label": "Youth Dashboard",
         "script": "dashboard/youth_dashboard.py",
-        "url": "http://localhost:8505",
-        "port": 8505,
+        "url": "http://localhost:8605",
+        "port": 8605,
     },
 }
 
@@ -130,12 +130,23 @@ def start_dashboard(dashboard_key: str, python_executable: str | None = None) ->
         raise ValueError(f"Unknown dashboard key: {dashboard_key}")
 
     _ensure_runtime_dirs()
-    if is_dashboard_running(dashboard_key):
-        return False
-
     cfg = DASHBOARD_CONFIG[dashboard_key]
     script_path = PROJECT_ROOT / str(cfg["script"])
     port = int(cfg["port"])
+
+    if is_dashboard_running(dashboard_key):
+        return False
+
+    # If the port is already in use and this dashboard is not managed by us,
+    # fail fast so callers do not open the wrong localhost app.
+    if _is_port_listening(port):
+        pid = _read_pid(dashboard_key)
+        if pid is not None and not _is_pid_alive(pid):
+            _clear_pid(dashboard_key)
+        raise RuntimeError(
+            f"Port {port} is already in use by another process. "
+            f"Cannot start dashboard '{dashboard_key}'."
+        )
 
     python_bin = python_executable or sys.executable
     log_handle = _log_path(dashboard_key).open("a", encoding="utf-8")
@@ -248,21 +259,14 @@ def switch_dashboard(target_key: str, current_key: str | None = None) -> str:
     start_dashboard(target_key)
     wait_for_dashboard(target_key, timeout_seconds=20.0)
 
-    keep = {target_key}
-    if current_key and current_key != target_key:
-        keep.add(current_key)
-    stop_all_dashboards(except_keys=keep)
-
-    if current_key and current_key != target_key:
-        _schedule_delayed_stop(current_key, delay_seconds=2.5)
-
     return str(DASHBOARD_CONFIG[target_key]["url"])
 
 
 def ensure_single_dashboard(current_key: str) -> None:
     if current_key not in DASHBOARD_CONFIG:
         raise ValueError(f"Unknown dashboard key: {current_key}")
-    stop_all_dashboards(except_keys={current_key})
+    # Dashboard servers are intentionally kept running to support fast switching.
+    return None
 
 
 def dashboard_url(dashboard_key: str) -> str:

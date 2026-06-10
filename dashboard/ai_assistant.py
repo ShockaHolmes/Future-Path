@@ -23,11 +23,11 @@ from future_path_ai_intake import ensure_intake_tables as ensure_intake_tables_b
 
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
-OVERVIEW_URL = "http://localhost:8501"
-PROFILE_LOOKUP_URL = "http://localhost:8502"
-AI_ASSISTANT_URL = "http://localhost:8503"
-CASEWORKER_URL = "http://localhost:8504"
-YOUTH_DASHBOARD_URL = "http://localhost:8505"
+OVERVIEW_URL = "http://localhost:8601"
+PROFILE_LOOKUP_URL = "http://localhost:8602"
+AI_ASSISTANT_URL = "http://localhost:8603"
+CASEWORKER_URL = "http://localhost:8604"
+YOUTH_DASHBOARD_URL = "http://localhost:8605"
 
 QUESTION_AUDIO_FILES: dict[str, str] = {
     "housing_status": "Assets/audio/Housing.mp3",

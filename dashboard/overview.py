@@ -31,11 +31,11 @@ from candidate_promotion import load_promotable_candidate_intakes
 DEFAULT_DB_PATH = Path("database/future_path.db")
 STATE_ICON_PATH = Path("Assets/FuturePathPNG/State-of-Delaware.png")
 LAUNCH_LOGO_PATH = Path("Assets/FuturePathPNG/Future-Path-Launch-Logo.png")
-OVERVIEW_URL = "http://localhost:8501"
-PROFILE_LOOKUP_URL = "http://localhost:8502"
-AI_ASSISTANT_URL = "http://localhost:8503"
-CASEWORKER_URL = "http://localhost:8504"
-YOUTH_DASHBOARD_URL = "http://localhost:8505"
+OVERVIEW_URL = "http://localhost:8601"
+PROFILE_LOOKUP_URL = "http://localhost:8602"
+AI_ASSISTANT_URL = "http://localhost:8603"
+CASEWORKER_URL = "http://localhost:8604"
+YOUTH_DASHBOARD_URL = "http://localhost:8605"
 
 
 def load_image_data_uri(image_path: Path) -> str | None:

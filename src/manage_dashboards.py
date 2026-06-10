@@ -26,16 +26,23 @@ def _parse_args() -> argparse.Namespace:
     stop_parser = subparsers.add_parser("stop", help="Stop one dashboard server")
     stop_parser.add_argument("dashboard", choices=sorted(DASHBOARD_CONFIG.keys()))
 
-    switch_parser = subparsers.add_parser("switch", help="Start target dashboard and stop others")
+    switch_parser = subparsers.add_parser("switch", help="Ensure target dashboard is running and print its URL")
     switch_parser.add_argument("dashboard", choices=sorted(DASHBOARD_CONFIG.keys()))
-    switch_parser.add_argument("--current", choices=sorted(DASHBOARD_CONFIG.keys()))
+    switch_parser.add_argument(
+        "--current",
+        choices=sorted(DASHBOARD_CONFIG.keys()),
+        help="Compatibility option; ignored in always-on mode.",
+    )
 
     subparsers.add_parser("stop-all", help="Stop all dashboard servers")
 
     status_parser = subparsers.add_parser("status", help="Show dashboard server status")
     status_parser.add_argument("--dashboard", choices=sorted(DASHBOARD_CONFIG.keys()))
 
-    ensure_parser = subparsers.add_parser("ensure-single", help="Stop every server except the current one")
+    ensure_parser = subparsers.add_parser(
+        "ensure-single",
+        help="Compatibility no-op in always-on mode",
+    )
     ensure_parser.add_argument("dashboard", choices=sorted(DASHBOARD_CONFIG.keys()))
 
     return parser.parse_args()
@@ -45,7 +52,11 @@ def main() -> int:
     args = _parse_args()
 
     if args.command == "start":
-        started = start_dashboard(args.dashboard)
+        try:
+            started = start_dashboard(args.dashboard)
+        except RuntimeError as exc:
+            print(f"error={exc}")
+            return 1
         ready = wait_for_dashboard(args.dashboard, timeout_seconds=20.0)
         print(f"started={started} ready={ready} url={dashboard_url(args.dashboard)}")
         return 0 if ready else 1
