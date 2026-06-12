@@ -357,6 +357,25 @@ def unassign_case(connection: sqlite3.Connection, youth_id: str, caseworker_id: 
     )
 
 
+def reset_youth_intake(connection: sqlite3.Connection, youth_id: str) -> None:
+    """Clear all intake sessions and answers for a youth so they can restart their intake."""
+    # Delete intake answers first (due to foreign key constraint)
+    connection.execute(
+        """
+        DELETE FROM intake_answers
+        WHERE intake_session_id IN (
+            SELECT intake_session_id FROM intake_sessions WHERE youth_id = ?
+        )
+        """,
+        (youth_id,),
+    )
+    # Delete intake sessions
+    connection.execute(
+        "DELETE FROM intake_sessions WHERE youth_id = ?",
+        (youth_id,),
+    )
+
+
 def sync_case_statuses_after_intake_completion(connection: sqlite3.Connection, caseworker_id: str) -> int:
     connection.execute(
         """
@@ -2563,6 +2582,18 @@ def render() -> None:
                 unassign_case(connection, selected_youth_id, caseworker_id)
                 connection.commit()
             st.success(f"Case unassigned: {selected_youth_id}")
+            st.rerun()
+
+    s4, s5 = st.columns([1, 2])
+    confirm_reset = s4.checkbox("Confirm Reset", key=f"confirm_reset_intake_{selected_youth_id}")
+    if s4.button("Reset Youth Intake", width="stretch"):
+        if not confirm_reset:
+            st.error("Check 'Confirm Reset' before clearing the intake.")
+        else:
+            with sqlite3.connect(db_path) as connection:
+                reset_youth_intake(connection, selected_youth_id)
+                connection.commit()
+            st.success(f"Intake cleared for {selected_youth_id}. They can now retake the AI Assistant intake.")
             st.rerun()
 
     st.divider()
