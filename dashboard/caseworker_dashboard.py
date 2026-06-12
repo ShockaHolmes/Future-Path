@@ -357,6 +357,25 @@ def unassign_case(connection: sqlite3.Connection, youth_id: str, caseworker_id: 
     )
 
 
+def reset_youth_intake(connection: sqlite3.Connection, youth_id: str) -> None:
+    """Clear all intake sessions and answers for a youth so they can restart their intake."""
+    # Delete intake answers first (due to foreign key constraint)
+    connection.execute(
+        """
+        DELETE FROM intake_answers
+        WHERE intake_session_id IN (
+            SELECT intake_session_id FROM intake_sessions WHERE youth_id = ?
+        )
+        """,
+        (youth_id,),
+    )
+    # Delete intake sessions
+    connection.execute(
+        "DELETE FROM intake_sessions WHERE youth_id = ?",
+        (youth_id,),
+    )
+
+
 def sync_case_statuses_after_intake_completion(connection: sqlite3.Connection, caseworker_id: str) -> int:
     connection.execute(
         """
@@ -559,6 +578,27 @@ def load_resource_catalog(connection: sqlite3.Connection) -> pd.DataFrame:
     )
 
 
+def load_active_assigned_resources(connection: sqlite3.Connection, youth_id: str) -> pd.DataFrame:
+    return pd.read_sql_query(
+        """
+        SELECT
+            ar.assignment_id,
+            ar.resource_id,
+            COALESCE(res.resource_name, ar.resource_id) AS resource_name,
+            COALESCE(ar.assignment_status, 'assigned') AS assignment_status,
+            COALESCE(ar.assigned_at, '') AS assigned_at
+        FROM assigned_resources ar
+        LEFT JOIN resources res ON res.resource_id = ar.resource_id
+        WHERE ar.youth_id = ?
+          AND ar.profile_type = 'youth'
+          AND ar.assignment_status IN ('assigned', 'in_progress')
+        ORDER BY ar.assigned_at DESC, ar.assignment_id DESC
+        """,
+        connection,
+        params=[youth_id],
+    )
+
+
 def load_youth_contact(connection: sqlite3.Connection, youth_id: str) -> tuple[str, str]:
     if not table_exists(connection, "caseworker_youth"):
         return "Youth Participant", ""
@@ -600,6 +640,38 @@ def update_recommendation_statuses(
             """,
             (youth_id, resource_id),
         )
+
+
+def unassign_resources(connection: sqlite3.Connection, youth_id: str, resource_ids: list[str]) -> int:
+    if not resource_ids:
+        return 0
+
+    unassigned = 0
+    for resource_id in resource_ids:
+        result = connection.execute(
+            """
+            DELETE FROM assigned_resources
+            WHERE youth_id = ?
+              AND profile_type = 'youth'
+              AND resource_id = ?
+              AND assignment_status IN ('assigned', 'in_progress')
+            """,
+            (youth_id, resource_id),
+        )
+        if result.rowcount and result.rowcount > 0:
+            unassigned += int(result.rowcount)
+            connection.execute(
+                """
+                UPDATE recommendations
+                SET recommendation_status = 'proposed'
+                WHERE youth_id = ?
+                  AND resource_id = ?
+                  AND COALESCE(recommendation_status, 'proposed') = 'accepted'
+                """,
+                (youth_id, resource_id),
+            )
+
+    return unassigned
 
     for resource_id in rejected_resource_ids:
         connection.execute(
@@ -2565,6 +2637,18 @@ def render() -> None:
             st.success(f"Case unassigned: {selected_youth_id}")
             st.rerun()
 
+    s4, s5 = st.columns([1, 2])
+    confirm_reset = s4.checkbox("Confirm Reset", key=f"confirm_reset_intake_{selected_youth_id}")
+    if s4.button("Reset Youth Intake", width="stretch"):
+        if not confirm_reset:
+            st.error("Check 'Confirm Reset' before clearing the intake.")
+        else:
+            with sqlite3.connect(db_path) as connection:
+                reset_youth_intake(connection, selected_youth_id)
+                connection.commit()
+            st.success(f"Intake cleared for {selected_youth_id}. They can now retake the AI Assistant intake.")
+            st.rerun()
+
     st.divider()
     insights_col, actions_col = st.columns([1.05, 1])
 
@@ -2601,10 +2685,12 @@ def render() -> None:
         st.subheader("Resource Assignment")
         approved_ids: list[str] = []
         rejected_ids: list[str] = []
+        unassign_ids: list[str] = []
         overlap: list[str] = []
         with sqlite3.connect(db_path) as connection:
             recommendations_df = load_recommendations(connection, selected_youth_id)
             catalog_df = load_resource_catalog(connection)
+            assigned_df = load_active_assigned_resources(connection, selected_youth_id)
             youth_name_for_email, youth_email = load_youth_contact(connection, selected_youth_id)
 
         if not recommendations_df.empty:
@@ -2643,6 +2729,25 @@ def render() -> None:
             if overlap:
                 st.error("A resource cannot be both approved and rejected. Remove duplicates before applying.")
 
+        if not assigned_df.empty:
+            st.caption("Currently assigned resources")
+            st.dataframe(
+                assigned_df[["resource_name", "assignment_status", "assigned_at"]],
+                hide_index=True,
+                width="stretch",
+            )
+
+            assigned_map = {
+                f"{row['resource_name']} ({row['resource_id']})": str(row["resource_id"])
+                for _, row in assigned_df.iterrows()
+            }
+            unassign_labels = st.multiselect(
+                "Unassign Resources",
+                options=list(assigned_map.keys()),
+                key=f"unassign_resources_{selected_youth_id}",
+            )
+            unassign_ids = [assigned_map[label] for label in unassign_labels]
+
         options_map = {f"{row['resource_name']} ({row['resource_id']})": str(row['resource_id']) for _, row in catalog_df.iterrows()}
         selected_labels = st.multiselect(
             "Replace / Add Resources (not in recommendations)",
@@ -2654,8 +2759,8 @@ def render() -> None:
         assign_note = st.text_area("Assignment Note", placeholder="Why this resource was selected")
 
         if st.button("Apply Recommendation Decisions", type="primary", width="stretch"):
-            if recommendations_df.empty and not selected_resource_ids:
-                st.warning("No recommendations or replacement resources were selected.")
+            if recommendations_df.empty and not selected_resource_ids and not unassign_ids:
+                st.warning("No recommendations, replacement resources, or unassignments were selected.")
             elif not recommendations_df.empty and overlap:
                 st.error("Fix approval/rejection overlap before applying decisions.")
             else:
@@ -2664,6 +2769,11 @@ def render() -> None:
                 replaced_set = set(selected_resource_ids)
 
                 with sqlite3.connect(db_path) as connection:
+                    unassigned_count = unassign_resources(
+                        connection,
+                        youth_id=selected_youth_id,
+                        resource_ids=unassign_ids,
+                    )
                     inserted, skipped = assign_resources(
                         connection,
                         youth_id=selected_youth_id,
@@ -2731,11 +2841,10 @@ def render() -> None:
 
                     connection.commit()
 
-                st.success(
-                    "Decisions applied. "
-                    f"Assigned {inserted} resource(s), skipped {skipped}. "
-                    "Email drafts for youth and resource centers were generated."
-                )
+                summary = [f"Assigned {inserted} resource(s)", f"skipped {skipped}", f"unassigned {unassigned_count}"]
+                if combined_assignments:
+                    summary.append("generated email drafts")
+                st.success("Decisions applied: " + ", ".join(summary) + ".")
                 st.rerun()
 
         if st.button("Assign Selected Resources", type="primary", width="stretch"):
