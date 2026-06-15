@@ -15,6 +15,7 @@ if str(SRC_PATH) not in sys.path:
 
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
 from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
+from youth_name_lookup import load_youth_name_map
 
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
@@ -85,6 +86,13 @@ def load_profiles(connection: sqlite3.Connection) -> pd.DataFrame:
     frame["full_name"] = (
         frame["first_name"].fillna("").str.strip() + " " + frame["last_name"].fillna("").str.strip()
     ).str.strip()
+    missing_name_ids = frame.loc[frame["full_name"].eq("") | frame["full_name"].isna(), "youth_id"].astype(str).tolist()
+    if missing_name_ids:
+        name_map = load_youth_name_map(connection, missing_name_ids)
+        frame["full_name"] = frame.apply(
+            lambda row: name_map.get(str(row["youth_id"]), row["full_name"]),
+            axis=1,
+        )
     frame["search_name"] = frame["full_name"].str.lower()
     return frame
 

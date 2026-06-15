@@ -20,6 +20,7 @@ from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
 from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from future_path_ai_intake import QUESTIONS, infer_summary_needs, resolve_profile_link, save_answer
 from future_path_ai_intake import ensure_intake_tables as ensure_intake_tables_base
+from youth_name_lookup import load_youth_name_map
 
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
@@ -61,6 +62,10 @@ def table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:
 def ensure_youth_portal_tables(connection: sqlite3.Connection) -> None:
     ensure_intake_tables_base(connection)
     ensure_assigned_resources_table_integrity(connection)
+    
+    # Import and ensure caseworker tables are available
+    from caseworker_dashboard import ensure_caseworker_tables
+    ensure_caseworker_tables(connection)
 
     connection.execute(
         """
@@ -536,6 +541,15 @@ def load_youth_options(connection: sqlite3.Connection) -> pd.DataFrame:
         )
 
     frame["youth_id"] = frame["youth_id"].astype(str)
+    frame["display_name"] = frame["display_name"].fillna("").astype(str).str.strip()
+
+    missing_name_ids = frame.loc[frame["display_name"].eq(""), "youth_id"].tolist()
+    if missing_name_ids:
+        name_map = load_youth_name_map(connection, missing_name_ids)
+        frame["display_name"] = frame.apply(
+            lambda row: name_map.get(str(row["youth_id"]), row["display_name"] or row["youth_id"]),
+            axis=1,
+        )
 
     if table_exists(connection, "intake_sessions"):
         intake_status = pd.read_sql_query(
@@ -1090,6 +1104,50 @@ def render_intake_flow(connection: sqlite3.Connection, youth_id: str, intake_loc
     st.rerun()
 
 
+def load_available_caseworkers(connection: sqlite3.Connection) -> pd.DataFrame:
+    """Load all active caseworkers from the database."""
+    if not table_exists(connection, "caseworkers"):
+        return pd.DataFrame()
+    
+    return pd.read_sql_query(
+        """
+        SELECT caseworker_id, full_name, email
+        FROM caseworkers
+        WHERE is_active = 1
+        ORDER BY full_name ASC
+        """,
+        connection,
+    )
+
+
+def assign_caseworker_to_youth(
+    connection: sqlite3.Connection,
+    youth_id: str,
+    caseworker_id: str,
+    priority_level: str = "Medium",
+) -> None:
+    """Assign a caseworker to a youth profile."""
+    from caseworker_dashboard import ensure_caseworker_tables
+    
+    # Ensure caseworker tables exist
+    ensure_caseworker_tables(connection)
+    
+    # Insert or update the case assignment
+    connection.execute(
+        """
+        INSERT INTO case_assignments (youth_id, caseworker_id, case_status, priority_level, assigned_at, last_updated_at)
+        VALUES (?, ?, 'assigned', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(youth_id) DO UPDATE SET
+            caseworker_id = excluded.caseworker_id,
+            case_status = 'assigned',
+            priority_level = excluded.priority_level,
+            last_updated_at = CURRENT_TIMESTAMP
+        """,
+        (youth_id, caseworker_id, priority_level),
+    )
+    connection.commit()
+
+
 def render() -> None:
     st.set_page_config(page_title="Future Path Youth Dashboard", page_icon="FP", layout="wide")
     ensure_single_dashboard("youth_dashboard")
@@ -1339,6 +1397,42 @@ def render() -> None:
         caseworker_id_for_request: str | None = None
         if caseworker_df.empty:
             st.info("A caseworker has not been assigned yet.")
+            st.markdown("**Assign a Caseworker:**")
+            with sqlite3.connect(db_path) as caseworker_connection:
+                caseworker_connection.row_factory = sqlite3.Row
+                available_caseworkers = load_available_caseworkers(caseworker_connection)
+            
+            if available_caseworkers.empty:
+                st.warning("No caseworkers are available. Please contact an administrator.")
+            else:
+                caseworker_options = {
+                    f"{row['full_name']} ({row['caseworker_id']})": row['caseworker_id']
+                    for _, row in available_caseworkers.iterrows()
+                }
+                
+                with st.form("assign_caseworker_form", clear_on_submit=False):
+                    selected_caseworker_display = st.selectbox(
+                        "Choose a caseworker",
+                        options=list(caseworker_options.keys()),
+                        key="caseworker_select"
+                    )
+                    priority = st.selectbox(
+                        "Priority level for this case",
+                        options=["Low", "Medium", "High"],
+                        index=1,
+                        key="case_priority_select"
+                    )
+                    submit_button = st.form_submit_button("Assign Caseworker", type="primary", use_container_width=True)
+                
+                if submit_button:
+                    selected_caseworker_id = caseworker_options[selected_caseworker_display]
+                    with sqlite3.connect(db_path) as assignment_connection:
+                        assignment_connection.row_factory = sqlite3.Row
+                        from caseworker_dashboard import ensure_caseworker_tables
+                        ensure_caseworker_tables(assignment_connection)
+                        assign_caseworker_to_youth(assignment_connection, selected_youth_id, selected_caseworker_id, priority)
+                    st.success(f"Caseworker assigned successfully! {selected_caseworker_display} is now assigned to your profile.")
+                    st.rerun()
         else:
             row = caseworker_df.iloc[0]
             caseworker_id_for_request = str(row["caseworker_id"])
@@ -1348,6 +1442,42 @@ def render() -> None:
             st.write(f"Case Status: {str(row['case_status']).replace('_', ' ').title()}")
             if row["next_follow_up_date"]:
                 st.write(f"Next Follow-Up: {row['next_follow_up_date']}")
+            
+            # Allow changing the caseworker
+            st.markdown("**Change Caseworker:**")
+            with sqlite3.connect(db_path) as caseworker_connection:
+                caseworker_connection.row_factory = sqlite3.Row
+                available_caseworkers = load_available_caseworkers(caseworker_connection)
+            
+            if not available_caseworkers.empty:
+                caseworker_options = {
+                    f"{row2['full_name']} ({row2['caseworker_id']})": row2['caseworker_id']
+                    for _, row2 in available_caseworkers.iterrows()
+                }
+                
+                with st.form("change_caseworker_form", clear_on_submit=False):
+                    selected_caseworker_display = st.selectbox(
+                        "Choose a different caseworker",
+                        options=list(caseworker_options.keys()),
+                        key="change_caseworker_select"
+                    )
+                    priority = st.selectbox(
+                        "Update priority level",
+                        options=["Low", "Medium", "High"],
+                        index=["Low", "Medium", "High"].index(str(row["priority_level"]).strip()) if str(row["priority_level"]).strip() in ["Low", "Medium", "High"] else 1,
+                        key="change_priority_select"
+                    )
+                    submit_button = st.form_submit_button("Update Caseworker", use_container_width=True)
+                
+                if submit_button:
+                    selected_caseworker_id = caseworker_options[selected_caseworker_display]
+                    with sqlite3.connect(db_path) as assignment_connection:
+                        assignment_connection.row_factory = sqlite3.Row
+                        from caseworker_dashboard import ensure_caseworker_tables
+                        ensure_caseworker_tables(assignment_connection)
+                        assign_caseworker_to_youth(assignment_connection, selected_youth_id, selected_caseworker_id, priority)
+                    st.success(f"Caseworker updated! {selected_caseworker_display} is now assigned to your profile.")
+                    st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="youth-section-card">', unsafe_allow_html=True)
