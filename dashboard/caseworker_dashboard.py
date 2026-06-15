@@ -33,6 +33,7 @@ from candidate_promotion import (
 )
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
 from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
+from youth_name_lookup import load_youth_name_map
 from future_path_ai_intake import ensure_intake_tables
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
@@ -1752,30 +1753,9 @@ def inject_caseworker_dashboard_styles() -> None:
 
 
 def load_youth_names(connection: sqlite3.Connection, youth_ids: list[str]) -> dict[str, str]:
-    if not youth_ids or not table_exists(connection, "caseworker_youth"):
+    if not youth_ids:
         return {}
-
-    placeholders = ",".join("?" for _ in youth_ids)
-    names_df = pd.read_sql_query(
-        f"""
-        SELECT youth_id, first_name, last_name
-        FROM caseworker_youth
-        WHERE youth_id IN ({placeholders})
-        """,
-        connection,
-        params=youth_ids,
-    )
-
-    if names_df.empty:
-        return {}
-
-    names_df["display_name"] = (
-        names_df["first_name"].fillna("").astype(str).str.strip()
-        + " "
-        + names_df["last_name"].fillna("").astype(str).str.strip()
-    ).str.strip()
-    names_df["display_name"] = names_df["display_name"].replace("", pd.NA).fillna(names_df["youth_id"].astype(str))
-    return dict(zip(names_df["youth_id"].astype(str), names_df["display_name"]))
+    return load_youth_name_map(connection, youth_ids)
 
 
 def load_recent_case_activity(connection: sqlite3.Connection, caseworker_id: str, limit: int = 8) -> pd.DataFrame:
