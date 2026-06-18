@@ -17,7 +17,7 @@ if str(SRC_PATH) not in sys.path:
 
 from assign_resources_from_intake import assign_resources_from_intake, ensure_assigned_resources_table_integrity
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
-from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
+from dashboard_theme import brand_logo_html, current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from future_path_ai_intake import QUESTIONS, infer_summary_needs, resolve_profile_link, save_answer
 from future_path_ai_intake import ensure_intake_tables as ensure_intake_tables_base
 from youth_name_lookup import load_youth_name_map
@@ -1160,9 +1160,12 @@ def render() -> None:
     st.markdown(
         f"""
         <div class="youth-header fp-brand-header">
-            <div class="youth-header-copy">
-                <div class="youth-title">Welcome to Future Path</div>
-                <div class="youth-subtitle">Complete your intake, track your support plan, and stay connected with your caseworker.</div>
+            <div class="fp-brand-lockup">
+                {brand_logo_html()}
+                <div class="youth-header-copy">
+                    <div class="youth-title">Welcome to Future Path</div>
+                    <div class="youth-subtitle">Complete your intake, track your support plan, and stay connected with your caseworker.</div>
+                </div>
             </div>
             <div class="fp-header-meta">{current_theme_badge_html()}</div>
         </div>
