@@ -14,7 +14,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
-from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
+from dashboard_theme import brand_logo_html, current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from youth_name_lookup import load_youth_name_map
 
 
@@ -290,7 +290,7 @@ def inject_profile_lookup_styles() -> None:
         .pl-step-title {
             font-family: 'Manrope', sans-serif;
             color: #122f82;
-            font-size: 2rem;
+            font-size: 2.75rem;
             font-weight: 800;
             line-height: 1;
         }
@@ -716,7 +716,10 @@ def render() -> None:
         f"""
         <div class="pl-shell">
             <div class="pl-brandbar fp-brand-header">
-                <div class="pl-brand-left">Future Path</div>
+                <div class="pl-brand-left fp-brand-lockup">
+                    {brand_logo_html()}
+                    <span>Future Path</span>
+                </div>
                 <div class="pl-brand-right">
                     <div><strong>Profile Lookup Workspace</strong></div>
                     <div>Review youth details and AI context</div>

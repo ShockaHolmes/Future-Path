@@ -32,7 +32,7 @@ from candidate_promotion import (
     promote_candidate_to_youth,
 )
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
-from dashboard_theme import current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
+from dashboard_theme import brand_logo_html, current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from youth_name_lookup import load_youth_name_map
 from future_path_ai_intake import ensure_intake_tables
 
@@ -1254,7 +1254,7 @@ def inject_caseworker_dashboard_styles() -> None:
         .cw-step-title {
             font-family: 'Manrope', sans-serif;
             color: #122f82;
-            font-size: 2rem;
+            font-size: 2.75rem;
             font-weight: 800;
             line-height: 1;
         }
@@ -1860,9 +1860,12 @@ def render() -> None:
     ensure_single_dashboard("caseworker_dashboard")
     inject_caseworker_dashboard_styles()
     st.markdown(
-        """
+        f"""
         <div class="cw-step-banner fp-brand-header">
-            <span class="cw-step-title">Caseworker Dashboard</span>
+            <span class="fp-brand-lockup">
+                {brand_logo_html()}
+                <span class="cw-step-title">Caseworker Dashboard</span>
+            </span>
         </div>
         """,
         unsafe_allow_html=True,

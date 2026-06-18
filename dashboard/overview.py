@@ -675,14 +675,25 @@ def inject_overview_styles() -> None:
         }
 
         .overview-title {
-            font-size: 2rem;
+            font-size: 2.6rem;
             font-weight: 800;
             color: var(--fp-heading);
             line-height: 1.1;
         }
 
+        .overview-brand-block {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 14px 22px 16px;
+            box-shadow: 0 10px 26px rgba(13, 71, 161, 0.12);
+        }
+
         .overview-launch-logo {
-            height: 70px;
+            height: 104px;
             width: auto;
             max-width: 100%;
             object-fit: contain;
@@ -690,9 +701,10 @@ def inject_overview_styles() -> None:
         }
 
         .overview-subtitle {
-            color: var(--fp-text-secondary);
-            font-size: 1.02rem;
-            margin-top: 4px;
+            color: #1f3b63;
+            font-size: 1.28rem;
+            font-weight: 600;
+            margin-top: 0;
         }
 
         .overview-badge {
@@ -1338,7 +1350,7 @@ def render() -> None:
         f"""
         <div class="overview-shell">
             <div class="overview-header fp-brand-header">
-                <div>
+                <div class="overview-brand-block">
                     {header_logo_html}
                     <div class="overview-subtitle">Youth Transition Support Dashboard</div>
                 </div>

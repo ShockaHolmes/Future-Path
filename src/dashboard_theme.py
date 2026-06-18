@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import base64
+from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import streamlit as st
 
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+BRAND_LOGO_PATH = PROJECT_ROOT / "Assets" / "FuturePathPNG" / "FP-Logo.png"
 
 THEME_QUERY_PARAM = "theme"
 THEME_STATE_KEY = "dashboard_theme_mode"
@@ -441,6 +446,27 @@ __FP_DISPLAY_CSS__
             z-index: 1;
         }
 
+        .fp-brand-logo {
+            height: 88px;
+            width: auto;
+            display: block;
+            margin-bottom: 0.5rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 6px;
+            box-shadow: 0 8px 20px color-mix(in srgb, var(--fp-accent-blue) 16%, transparent);
+        }
+
+        .fp-brand-lockup {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .fp-brand-lockup .fp-brand-logo {
+            margin-bottom: 0;
+        }
+
         .fp-theme-badge {
             display: inline-flex;
             align-items: center;
@@ -506,6 +532,21 @@ __FP_DISPLAY_CSS__
     """
     display_css = presentation_css if display_mode == "presentation" else responsive_css
     return styles.replace("__FP_DISPLAY_CSS__", display_css)
+
+
+@st.cache_data(show_spinner=False)
+def _brand_logo_data_uri() -> str | None:
+    if not BRAND_LOGO_PATH.exists():
+        return None
+    encoded = base64.b64encode(BRAND_LOGO_PATH.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+def brand_logo_html(alt: str = "Future Path") -> str:
+    data_uri = _brand_logo_data_uri()
+    if not data_uri:
+        return ""
+    return f'<img class="fp-brand-logo" src="{data_uri}" alt="{alt}" />'
 
 
 def current_theme_badge_html() -> str:
