@@ -227,6 +227,99 @@ def filter_profiles(frame: pd.DataFrame, mode: str, query: str) -> pd.DataFrame:
     return frame[frame["search_name"].str.contains(cleaned, na=False)]
 
 
+YOUTH_IMAGE_DIRS = (
+    PROJECT_ROOT / "Assets" / "FuturePathPNG" / "Youth-Images" / "Male",
+    PROJECT_ROOT / "Assets" / "FuturePathPNG" / "Youth-Images" / "Female",
+)
+
+
+def find_youth_image(full_name: str) -> Path | None:
+    """Return the headshot image for a youth based on their full name, if one exists.
+
+    Image files are stored as "First,Last.png" under the Male/Female folders. The
+    lookup tolerates a few common separators and falls back to a case-insensitive scan.
+    """
+    cleaned = (full_name or "").strip()
+    if not cleaned:
+        return None
+
+    parts = cleaned.split()
+    if len(parts) < 2:
+        return None
+
+    first, last = parts[0], parts[-1]
+    candidate_names = [
+        f"{first},{last}.png",
+        f"{first}, {last}.png",
+        f"{first}.{last}.png",
+        f"{first} {last}.png",
+    ]
+    for directory in YOUTH_IMAGE_DIRS:
+        for candidate in candidate_names:
+            image_path = directory / candidate
+            if image_path.exists():
+                return image_path
+
+    target = f"{first},{last}.png".lower()
+    for directory in YOUTH_IMAGE_DIRS:
+        if not directory.exists():
+            continue
+        for image_path in directory.glob("*.png"):
+            if image_path.name.lower() == target:
+                return image_path
+    return None
+
+
+def reset_youth_profile(connection: sqlite3.Connection, youth_id: str) -> dict[str, int]:
+    """Return a youth profile to its beginning state.
+
+    Removes assigned resources, AI intake sessions/answers, recommendations, and
+    risk scores for the youth. Returns a mapping of table name to rows removed.
+    """
+    cleared: dict[str, int] = {}
+
+    if table_exists(connection, "assigned_resources"):
+        result = connection.execute(
+            "DELETE FROM assigned_resources WHERE youth_id = ? AND profile_type = 'youth'",
+            (youth_id,),
+        )
+        cleared["assigned_resources"] = int(result.rowcount or 0)
+
+    if table_exists(connection, "recommendations"):
+        result = connection.execute(
+            "DELETE FROM recommendations WHERE youth_id = ?",
+            (youth_id,),
+        )
+        cleared["recommendations"] = int(result.rowcount or 0)
+
+    if table_exists(connection, "intake_sessions"):
+        if table_exists(connection, "intake_answers"):
+            connection.execute(
+                """
+                DELETE FROM intake_answers
+                WHERE intake_session_id IN (
+                    SELECT intake_session_id FROM intake_sessions WHERE youth_id = ?
+                )
+                """,
+                (youth_id,),
+            )
+        result = connection.execute(
+            "DELETE FROM intake_sessions WHERE youth_id = ?",
+            (youth_id,),
+        )
+        cleared["intake_sessions"] = int(result.rowcount or 0)
+
+    if table_exists(connection, "risk_scores"):
+        result = connection.execute(
+            "DELETE FROM risk_scores WHERE youth_id = ?",
+            (youth_id,),
+        )
+        cleared["risk_scores"] = int(result.rowcount or 0)
+
+    connection.commit()
+    return cleared
+
+
 def inject_profile_lookup_styles() -> None:
     st.markdown(
         """
@@ -338,6 +431,26 @@ def inject_profile_lookup_styles() -> None:
             background: #ffffff;
             padding: 12px;
             margin-bottom: 0.9rem;
+        }
+
+        .pl-youth-photo img {
+            border-radius: 16px;
+            border: 1px solid #d7e4ff;
+            box-shadow: 0 10px 26px rgba(17, 61, 156, 0.12);
+        }
+
+        .pl-photo-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 180px;
+            border-radius: 16px;
+            border: 1px dashed #c2d3f5;
+            background: #f6faff;
+            color: #5d75b1;
+            font-weight: 600;
+            padding: 12px;
         }
 
         .pl-metric-card {
@@ -743,6 +856,7 @@ def render() -> None:
         st.markdown('<a class="pl-jump-link" href="#profile-recommendations">Recommendations</a>', unsafe_allow_html=True)
     with profile_jump_tabs[2]:
         st.markdown('<a class="pl-jump-link" href="#profile-intake-summary">AI Intake Summary</a>', unsafe_allow_html=True)
+        st.markdown('<a class="pl-jump-link" href="#profile-reset">Reset Profile</a>', unsafe_allow_html=True)
 
     if not db_path.exists():
         st.error(f"Database not found at: {db_path}")
@@ -785,27 +899,40 @@ def render() -> None:
     st.markdown('<span id="profile-info" class="pl-anchor-target"></span>', unsafe_allow_html=True)
     st.subheader("Profile Information")
     st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
-    info_col1, info_col2, info_col3 = st.columns(3)
-    with info_col1:
-        st.markdown(
-            f"""
-            <div class="pl-metric-card">
-                <div class="pl-metric-label">Youth ID</div>
-                <div class="pl-metric-value">{selected_row['youth_id']}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.write(f"Name: {selected_row['full_name'] if selected_row['full_name'] else 'Not available'}")
-        st.write(f"Age: {int(selected_row['age'])}")
-    with info_col2:
-        st.write(f"County: {selected_row['county']}")
-        st.write(f"Education: {selected_row['education']}")
-        st.write(f"Employment: {selected_row['employment']}")
-    with info_col3:
-        st.write(f"Housing: {selected_row['housing']}")
-        st.write(f"Mentor Status: {selected_row['mentor_status']}")
-        st.write(f"Placement Count: {int(selected_row['placement_count'])}")
+    photo_col, details_col = st.columns([1, 3])
+    with photo_col:
+        youth_image_path = find_youth_image(selected_row["full_name"])
+        if youth_image_path is not None:
+            st.markdown('<div class="pl-youth-photo">', unsafe_allow_html=True)
+            st.image(str(youth_image_path), use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(
+                '<div class="pl-photo-placeholder">No photo available</div>',
+                unsafe_allow_html=True,
+            )
+    with details_col:
+        info_col1, info_col2, info_col3 = st.columns(3)
+        with info_col1:
+            st.markdown(
+                f"""
+                <div class="pl-metric-card">
+                    <div class="pl-metric-label">Youth ID</div>
+                    <div class="pl-metric-value">{selected_row['youth_id']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.write(f"Name: {selected_row['full_name'] if selected_row['full_name'] else 'Not available'}")
+            st.write(f"Age: {int(selected_row['age'])}")
+        with info_col2:
+            st.write(f"County: {selected_row['county']}")
+            st.write(f"Education: {selected_row['education']}")
+            st.write(f"Employment: {selected_row['employment']}")
+        with info_col3:
+            st.write(f"Housing: {selected_row['housing']}")
+            st.write(f"Mentor Status: {selected_row['mentor_status']}")
+            st.write(f"Placement Count: {int(selected_row['placement_count'])}")
     st.markdown('</div>', unsafe_allow_html=True)
 
     with sqlite3.connect(db_path) as connection:
@@ -877,6 +1004,31 @@ def render() -> None:
                 hide_index=True,
                 width="stretch",
             )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.divider()
+    st.markdown('<span id="profile-reset" class="pl-anchor-target"></span>', unsafe_allow_html=True)
+    st.subheader("Reset Profile")
+    st.markdown('<div class="pl-section-card">', unsafe_allow_html=True)
+    st.caption(
+        "Remove all assigned resources and return this youth profile to its beginning "
+        "state. This clears assigned resources, AI intake sessions, recommendations, and "
+        "risk scores for the selected youth. This action cannot be undone."
+    )
+    reset_label = selected_row["full_name"] if selected_row["full_name"] else selected_youth_id
+    confirm_reset = st.checkbox(
+        f"Confirm reset for {reset_label} ({selected_youth_id})",
+        key=f"confirm_reset_profile_{selected_youth_id}",
+    )
+    if st.button("Reset Profile to Beginning State", type="primary", key=f"reset_profile_{selected_youth_id}"):
+        if not confirm_reset:
+            st.error("Check the confirmation box before resetting this profile.")
+        else:
+            with sqlite3.connect(db_path) as connection:
+                cleared = reset_youth_profile(connection, selected_youth_id)
+            summary = ", ".join(f"{count} {table}" for table, count in cleared.items())
+            st.success(f"Profile reset for {reset_label}. Removed: {summary if summary else 'nothing'}.")
+            st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 
