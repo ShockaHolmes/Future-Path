@@ -16,6 +16,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
+from dashboard_runtime import configure_page, navigate
 from dashboard_theme import (
     branded_palette,
     get_theme_mode,
@@ -1294,16 +1295,11 @@ def render_top_navigation(current_page: str) -> None:
                 st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
                 if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
-                    next_url = themed_url(switch_dashboard(page_key, current_key=current_page))
-                    st.markdown(
-                        f'<meta http-equiv="refresh" content="0; url={next_url}">',
-                        unsafe_allow_html=True,
-                    )
-                    st.stop()
+                    navigate(page_key, current_key=current_page)
 
 
 def render() -> None:
-    st.set_page_config(page_title="Future Path Dashboard", page_icon="FP", layout="wide")
+    configure_page(page_title="Future Path Dashboard", page_icon="FP", layout="wide")
     ensure_single_dashboard("overview")
     inject_overview_styles()
 
@@ -1365,9 +1361,7 @@ def render() -> None:
     launch_col1, launch_col2 = st.columns([1.1, 2.4])
     with launch_col1:
         if st.button("Open Youth Dashboard", type="primary", use_container_width=True, key="overview_launch_youth"):
-            next_url = themed_url(switch_dashboard("youth_dashboard", current_key="overview"))
-            st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-            st.stop()
+            navigate("youth_dashboard", current_key="overview")
     with launch_col2:
         st.caption("For youth users: complete intake, view assigned resources, and contact your caseworker.")
 
@@ -1601,9 +1595,7 @@ def render() -> None:
         if candidate_queue_df.empty:
             st.info("No candidate intakes are waiting for promotion.")
             if st.button("Start Candidate Intake", width="stretch", key="overview_start_candidate_intake"):
-                next_url = themed_url(switch_dashboard("ai_assistant", current_key="overview"))
-                st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-                st.stop()
+                navigate("ai_assistant", current_key="overview")
         else:
             st.dataframe(candidate_queue_df, hide_index=True, width="stretch")
 
@@ -1659,19 +1651,13 @@ def render() -> None:
             action_col1, action_col2, action_col3 = st.columns(3)
             with action_col1:
                 if st.button("Start Candidate Intake", width="stretch", key="overview_start_candidate_intake_from_queue"):
-                    next_url = themed_url(switch_dashboard("ai_assistant", current_key="overview"))
-                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-                    st.stop()
+                    navigate("ai_assistant", current_key="overview")
             with action_col2:
                 if st.button("Promote In Caseworker", width="stretch", key="overview_promote_candidate"):
-                    next_url = themed_url(switch_dashboard("caseworker_dashboard", current_key="overview"))
-                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-                    st.stop()
+                    navigate("caseworker_dashboard", current_key="overview")
             with action_col3:
                 if st.button("Open AI Assistant", width="stretch", key="overview_open_ai_assistant"):
-                    next_url = themed_url(switch_dashboard("ai_assistant", current_key="overview"))
-                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-                    st.stop()
+                    navigate("ai_assistant", current_key="overview")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<span id="insight-callouts" class="overview-anchor-target"></span>', unsafe_allow_html=True)
