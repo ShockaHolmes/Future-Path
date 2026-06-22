@@ -1335,7 +1335,7 @@ def inject_caseworker_dashboard_styles() -> None:
         .cw-brand-right {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 6px;
             text-align: right;
             color: #16336f;
             font-size: 0.92rem;
@@ -1343,8 +1343,8 @@ def inject_caseworker_dashboard_styles() -> None:
         }
 
         .cw-brand-avatar {
-            width: 56px;
-            height: 56px;
+            width: 92px;
+            height: 92px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #d7e4ff;
@@ -2084,7 +2084,6 @@ def render() -> None:
                     <div>
                         <div><strong>{active_caseworker_name or caseworker_id}</strong></div>
                         <div>Caseworker</div>
-                        <div style="margin-top:8px;">{current_theme_badge_html()}</div>
                     </div>
                 </div>
             </div>
