@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import os
 import sqlite3
 import sys
@@ -37,11 +38,53 @@ from youth_name_lookup import load_youth_name_map
 from future_path_ai_intake import ensure_intake_tables
 
 DEFAULT_DB_PATH = Path("database/future_path.db")
+CASEWORKER_IMAGE_DIR = PROJECT_ROOT / "Assets" / "FuturePathPNG" / "AdultImages"
 OVERVIEW_URL = "http://localhost:8601"
 PROFILE_LOOKUP_URL = "http://localhost:8602"
 AI_ASSISTANT_URL = "http://localhost:8603"
 CASEWORKER_URL = "http://localhost:8604"
 YOUTH_DASHBOARD_URL = "http://localhost:8605"
+
+
+def load_image_data_uri(image_path: Path) -> str | None:
+    if not image_path.exists():
+        return None
+    encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+def find_caseworker_image(full_name: str) -> Path | None:
+    """Return the headshot image for a caseworker based on their full name, if one exists.
+
+    Image files are stored as "First.Last.png" under the AdultImages folder. The lookup
+    tolerates a few common separators and falls back to a case-insensitive scan.
+    """
+    cleaned = (full_name or "").strip()
+    if not cleaned:
+        return None
+
+    parts = cleaned.split()
+    if len(parts) < 2:
+        return None
+
+    first, last = parts[0], parts[-1]
+    candidate_names = [
+        f"{first}.{last}.png",
+        f"{first},{last}.png",
+        f"{first}, {last}.png",
+        f"{first} {last}.png",
+    ]
+    for candidate in candidate_names:
+        image_path = CASEWORKER_IMAGE_DIR / candidate
+        if image_path.exists():
+            return image_path
+
+    target = f"{first}.{last}.png".lower()
+    if CASEWORKER_IMAGE_DIR.exists():
+        for image_path in CASEWORKER_IMAGE_DIR.glob("*.png"):
+            if image_path.name.lower() == target:
+                return image_path
+    return None
 
 
 def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
@@ -1290,10 +1333,22 @@ def inject_caseworker_dashboard_styles() -> None:
         }
 
         .cw-brand-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             text-align: right;
             color: #16336f;
             font-size: 0.92rem;
             line-height: 1.3;
+        }
+
+        .cw-brand-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #d7e4ff;
+            box-shadow: 0 4px 12px rgba(17, 61, 156, 0.12);
         }
 
         .cw-metric-card {
@@ -2009,15 +2064,28 @@ def render() -> None:
     if not my_cases_df.empty and "age" in my_cases_df.columns:
         aging_out_count = int((pd.to_numeric(my_cases_df["age"], errors="coerce") >= 17).fillna(False).sum())
 
+    caseworker_avatar_html = ""
+    caseworker_image_path = find_caseworker_image(active_caseworker_name)
+    if caseworker_image_path is not None:
+        caseworker_image_uri = load_image_data_uri(caseworker_image_path)
+        if caseworker_image_uri:
+            caseworker_avatar_html = (
+                f'<img class="cw-brand-avatar" src="{caseworker_image_uri}" '
+                f'alt="{active_caseworker_name or caseworker_id}" />'
+            )
+
     st.markdown(
         f"""
         <div class="cw-shell">
             <div class="cw-brandbar fp-brand-header">
                 <div class="cw-brand-left">Future Path</div>
                 <div class="cw-brand-right">
-                    <div><strong>{active_caseworker_name or caseworker_id}</strong></div>
-                    <div>Caseworker</div>
-                    <div style="margin-top:8px;">{current_theme_badge_html()}</div>
+                    {caseworker_avatar_html}
+                    <div>
+                        <div><strong>{active_caseworker_name or caseworker_id}</strong></div>
+                        <div>Caseworker</div>
+                        <div style="margin-top:8px;">{current_theme_badge_html()}</div>
+                    </div>
                 </div>
             </div>
         </div>

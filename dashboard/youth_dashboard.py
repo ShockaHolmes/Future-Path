@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import sqlite3
 import sys
 from datetime import UTC, date, datetime
@@ -43,6 +44,55 @@ QUESTION_AUDIO_FILES: dict[str, str] = {
     "primary_need": "Assets/audio/Primary-Need.mp3",
 }
 
+YOUTH_IMAGE_DIRS = (
+    PROJECT_ROOT / "Assets" / "FuturePathPNG" / "Youth-Images" / "Male",
+    PROJECT_ROOT / "Assets" / "FuturePathPNG" / "Youth-Images" / "Female",
+)
+
+
+def load_image_data_uri(image_path: Path) -> str | None:
+    if not image_path.exists():
+        return None
+    encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+def find_youth_image(full_name: str) -> Path | None:
+    """Return the headshot image for a youth based on their full name, if one exists.
+
+    Image files are stored as "First,Last.png" under the Male/Female folders. The
+    lookup tolerates a few common separators and falls back to a case-insensitive scan.
+    """
+    cleaned = (full_name or "").strip()
+    if not cleaned:
+        return None
+
+    parts = cleaned.split()
+    if len(parts) < 2:
+        return None
+
+    first, last = parts[0], parts[-1]
+    candidate_names = [
+        f"{first},{last}.png",
+        f"{first}, {last}.png",
+        f"{first}.{last}.png",
+        f"{first} {last}.png",
+    ]
+    for directory in YOUTH_IMAGE_DIRS:
+        for candidate in candidate_names:
+            image_path = directory / candidate
+            if image_path.exists():
+                return image_path
+
+    target = f"{first},{last}.png".lower()
+    for directory in YOUTH_IMAGE_DIRS:
+        if not directory.exists():
+            continue
+        for image_path in directory.glob("*.png"):
+            if image_path.name.lower() == target:
+                return image_path
+    return None
+
 
 def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
     row = connection.execute(
@@ -50,8 +100,6 @@ def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
         (table_name,),
     ).fetchone()
     return row is not None
-
-
 def table_columns(connection: sqlite3.Connection, table_name: str) -> set[str]:
     if not table_exists(connection, table_name):
         return set()
@@ -250,6 +298,39 @@ def inject_styles() -> None:
             background: #fbfdff;
             padding: 12px;
             min-height: 86px;
+        }
+
+        .youth-profile-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border: 1px solid #e2ebff;
+            border-radius: 16px;
+            background: #fbfdff;
+            padding: 14px 18px;
+            margin: 8px 0 4px 0;
+        }
+
+        .youth-profile-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #d7e4ff;
+            box-shadow: 0 4px 12px rgba(17, 61, 156, 0.12);
+        }
+
+        .youth-profile-name {
+            color: #0f2f74;
+            font-family: 'Manrope', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+        }
+
+        .youth-profile-id {
+            color: #2c4d90;
+            font-size: 0.9rem;
+            font-weight: 600;
         }
 
         .youth-kpi-label {
@@ -1223,6 +1304,29 @@ def render() -> None:
     if st.session_state.get("youth_selected_id") != selected_youth_id:
         st.session_state["youth_selected_id"] = selected_youth_id
         reset_intake_state()
+
+    selected_name_row = youth_options[youth_options["youth_id"] == selected_youth_id]
+    selected_display_name = (
+        str(selected_name_row.iloc[0]["display_name"]).strip()
+        if not selected_name_row.empty
+        else selected_youth_id
+    )
+    youth_image_path = find_youth_image(selected_display_name)
+    if youth_image_path is not None:
+        youth_image_uri = load_image_data_uri(youth_image_path)
+        if youth_image_uri:
+            st.markdown(
+                f"""
+                <div class="youth-profile-card">
+                    <img class="youth-profile-avatar" src="{youth_image_uri}" alt="{escape(selected_display_name)}" />
+                    <div>
+                        <div class="youth-profile-name">{escape(selected_display_name)}</div>
+                        <div class="youth-profile-id">{escape(selected_youth_id)}</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     with sqlite3.connect(db_path) as connection:
         connection.row_factory = sqlite3.Row
