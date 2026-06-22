@@ -18,6 +18,7 @@ if str(SRC_PATH) not in sys.path:
 
 from assign_resources_from_intake import assign_resources_from_intake, ensure_assigned_resources_table_integrity
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
+from dashboard_runtime import configure_page, navigate
 from dashboard_theme import brand_logo_html, current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from future_path_ai_intake import QUESTIONS, infer_summary_needs, resolve_profile_link, save_answer
 from future_path_ai_intake import ensure_intake_tables as ensure_intake_tables_base
@@ -202,9 +203,7 @@ def render_top_navigation(current_page: str) -> None:
                 st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
                 if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
-                    next_url = themed_url(switch_dashboard(page_key, current_key=current_page))
-                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-                    st.stop()
+                    navigate(page_key, current_key=current_page)
 
 
 def inject_styles() -> None:
@@ -1230,7 +1229,7 @@ def assign_caseworker_to_youth(
 
 
 def render() -> None:
-    st.set_page_config(page_title="Future Path Youth Dashboard", page_icon="FP", layout="wide")
+    configure_page(page_title="Future Path Youth Dashboard", page_icon="FP", layout="wide")
     ensure_single_dashboard("youth_dashboard")
     initialize_state()
     inject_styles()

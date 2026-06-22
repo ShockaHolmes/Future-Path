@@ -14,6 +14,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
+from dashboard_runtime import configure_page, navigate
 from dashboard_theme import brand_logo_html, current_theme_badge_html, render_theme_toggle, theme_component_styles, theme_css_variables, themed_url
 from youth_name_lookup import load_youth_name_map
 
@@ -802,13 +803,11 @@ def render_top_navigation(current_page: str) -> None:
                 st.button(label, use_container_width=True, disabled=True, key=f"topnav_disabled_{current_page}_{page_key}")
             else:
                 if st.button(label, use_container_width=True, key=f"topnav_switch_{current_page}_{page_key}"):
-                    next_url = themed_url(switch_dashboard(page_key, current_key=current_page))
-                    st.markdown(f'<meta http-equiv="refresh" content="0; url={next_url}">', unsafe_allow_html=True)
-                    st.stop()
+                    navigate(page_key, current_key=current_page)
 
 
 def render() -> None:
-    st.set_page_config(page_title="Future Path Profile Lookup", page_icon="FP", layout="wide")
+    configure_page(page_title="Future Path Profile Lookup", page_icon="FP", layout="wide")
     ensure_single_dashboard("profile_lookup")
     inject_profile_lookup_styles()
 
