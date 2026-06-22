@@ -225,7 +225,7 @@ def theme_component_styles() -> str:
         html,
         body,
         .stApp {
-            font-size: 19px !important;
+            font-size: 23px !important;
         }
 
         .main .block-container {
@@ -241,29 +241,29 @@ def theme_component_styles() -> str:
         .stApp .stMarkdown,
         .stApp .stCaptionContainer,
         .stApp [data-testid='stMarkdownContainer'] {
-            font-size: 1.02rem !important;
+            font-size: 1.18rem !important;
             line-height: 1.55 !important;
         }
 
         .stApp h1 {
-            font-size: 2.4rem !important;
+            font-size: 3rem !important;
         }
 
         .stApp h2 {
-            font-size: 1.95rem !important;
+            font-size: 2.4rem !important;
         }
 
         .stApp h3 {
-            font-size: 1.45rem !important;
+            font-size: 1.8rem !important;
         }
 
         .stApp .stMetric [data-testid='stMetricLabel'] {
-            font-size: 0.98rem !important;
+            font-size: 1.15rem !important;
             font-weight: 700 !important;
         }
 
         .stApp .stMetric [data-testid='stMetricValue'] {
-            font-size: 1.8rem !important;
+            font-size: 2.25rem !important;
             font-weight: 800 !important;
             line-height: 1.18 !important;
         }
@@ -271,27 +271,27 @@ def theme_component_styles() -> str:
         .stApp .stButton > button,
         .stApp .stDownloadButton > button,
         .stApp .stFormSubmitButton > button {
-            min-height: 3rem !important;
-            padding: 0.65rem 1rem !important;
-            font-size: 1.02rem !important;
+            min-height: 3.2rem !important;
+            padding: 0.7rem 1.1rem !important;
+            font-size: 1.18rem !important;
             font-weight: 700 !important;
         }
 
         .stApp [data-baseweb='input'] > div,
         .stApp [data-baseweb='select'] > div,
         .stApp [data-baseweb='textarea'] > div {
-            min-height: 3rem !important;
-            font-size: 1.02rem !important;
+            min-height: 3.2rem !important;
+            font-size: 1.18rem !important;
         }
 
         .stApp .stTabs [data-baseweb='tab'] {
-            font-size: 1rem !important;
+            font-size: 1.18rem !important;
             font-weight: 700 !important;
-            min-height: 2.8rem !important;
+            min-height: 3rem !important;
         }
 
         .stApp [data-testid='stDataFrame'] table {
-            font-size: 0.96rem !important;
+            font-size: 1.1rem !important;
         }
 
         .stApp [data-testid='stDataFrame'] th,
@@ -305,7 +305,7 @@ def theme_component_styles() -> str:
             html,
             body,
             .stApp {
-                font-size: 19px !important;
+                font-size: 21px !important;
             }
 
             .main .block-container {
@@ -321,29 +321,29 @@ def theme_component_styles() -> str:
             .stApp .stMarkdown,
             .stApp .stCaptionContainer,
             .stApp [data-testid='stMarkdownContainer'] {
-                font-size: 1.02rem !important;
+                font-size: 1.12rem !important;
                 line-height: 1.55 !important;
             }
 
             .stApp h1 {
-                font-size: 2.4rem !important;
+                font-size: 2.8rem !important;
             }
 
             .stApp h2 {
-                font-size: 1.95rem !important;
+                font-size: 2.25rem !important;
             }
 
             .stApp h3 {
-                font-size: 1.45rem !important;
+                font-size: 1.7rem !important;
             }
 
             .stApp .stMetric [data-testid='stMetricLabel'] {
-                font-size: 0.98rem !important;
+                font-size: 1.1rem !important;
                 font-weight: 700 !important;
             }
 
             .stApp .stMetric [data-testid='stMetricValue'] {
-                font-size: 1.8rem !important;
+                font-size: 2.1rem !important;
                 font-weight: 800 !important;
                 line-height: 1.18 !important;
             }
@@ -351,27 +351,27 @@ def theme_component_styles() -> str:
             .stApp .stButton > button,
             .stApp .stDownloadButton > button,
             .stApp .stFormSubmitButton > button {
-                min-height: 3rem !important;
-                padding: 0.65rem 1rem !important;
-                font-size: 1.02rem !important;
+                min-height: 3.1rem !important;
+                padding: 0.7rem 1.1rem !important;
+                font-size: 1.12rem !important;
                 font-weight: 700 !important;
             }
 
             .stApp [data-baseweb='input'] > div,
             .stApp [data-baseweb='select'] > div,
             .stApp [data-baseweb='textarea'] > div {
-                min-height: 3rem !important;
-                font-size: 1.02rem !important;
+                min-height: 3.1rem !important;
+                font-size: 1.12rem !important;
             }
 
             .stApp .stTabs [data-baseweb='tab'] {
-                font-size: 1rem !important;
+                font-size: 1.12rem !important;
                 font-weight: 700 !important;
-                min-height: 2.8rem !important;
+                min-height: 2.9rem !important;
             }
 
             .stApp [data-testid='stDataFrame'] table {
-                font-size: 0.96rem !important;
+                font-size: 1.05rem !important;
             }
 
             .stApp [data-testid='stDataFrame'] th,
@@ -387,7 +387,7 @@ def theme_component_styles() -> str:
         html,
         body,
         .stApp {
-            font-size: 17px;
+            font-size: 19px;
             line-height: 1.5;
         }
 
@@ -550,12 +550,7 @@ def brand_logo_html(alt: str = "Future Path") -> str:
 
 
 def current_theme_badge_html() -> str:
-    mode = get_theme_mode()
-    label = "Dark Mode" if mode == "dark" else "Light Mode"
-    badges = [f'<span class="fp-theme-badge" data-theme="{mode}">{label}</span>']
-    if get_display_mode() == "presentation":
-        badges.append('<span class="fp-theme-badge fp-presentation-badge" data-theme="presentation">Presentation Mode</span>')
-    return "".join(badges)
+    return ""
 
 
 def branded_palette(name: str) -> list[str]:
