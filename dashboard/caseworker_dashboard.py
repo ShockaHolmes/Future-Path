@@ -1101,6 +1101,74 @@ def save_follow_up(
     )
 
 
+def recompute_next_follow_up_date(connection: sqlite3.Connection, youth_id: str) -> None:
+    """Sync case_assignments.next_follow_up_date with the youth's active follow-ups.
+
+    Prefers the soonest upcoming scheduled/rescheduled follow-up; falls back to the most
+    recent follow-up on record, and clears the field when no follow-ups remain.
+    """
+    row = connection.execute(
+        """
+        SELECT follow_up_date
+        FROM follow_ups
+        WHERE youth_id = ? AND follow_up_status IN ('scheduled', 'rescheduled')
+        ORDER BY follow_up_date ASC, follow_up_id DESC
+        LIMIT 1
+        """,
+        (youth_id,),
+    ).fetchone()
+    if row is None:
+        row = connection.execute(
+            """
+            SELECT follow_up_date
+            FROM follow_ups
+            WHERE youth_id = ?
+            ORDER BY follow_up_date DESC, follow_up_id DESC
+            LIMIT 1
+            """,
+            (youth_id,),
+        ).fetchone()
+    next_date = row[0] if row else None
+    connection.execute(
+        """
+        UPDATE case_assignments
+        SET next_follow_up_date = ?,
+            last_updated_at = CURRENT_TIMESTAMP
+        WHERE youth_id = ?
+        """,
+        (next_date, youth_id),
+    )
+
+
+def update_follow_up(
+    connection: sqlite3.Connection,
+    follow_up_id: int,
+    youth_id: str,
+    follow_up_date: date,
+    follow_up_status: str,
+    details: str,
+) -> None:
+    connection.execute(
+        """
+        UPDATE follow_ups
+        SET follow_up_date = ?,
+            follow_up_status = ?,
+            details = ?
+        WHERE follow_up_id = ? AND youth_id = ?
+        """,
+        (follow_up_date.isoformat(), follow_up_status, details.strip() or None, follow_up_id, youth_id),
+    )
+    recompute_next_follow_up_date(connection, youth_id)
+
+
+def cancel_follow_up(connection: sqlite3.Connection, follow_up_id: int, youth_id: str) -> None:
+    connection.execute(
+        "DELETE FROM follow_ups WHERE follow_up_id = ? AND youth_id = ?",
+        (follow_up_id, youth_id),
+    )
+    recompute_next_follow_up_date(connection, youth_id)
+
+
 def load_follow_ups(connection: sqlite3.Connection, youth_id: str) -> pd.DataFrame:
     return pd.read_sql_query(
         """
@@ -3085,6 +3153,66 @@ def render() -> None:
         st.info("No follow-up records for this youth yet.")
     else:
         st.dataframe(follow_ups_df, hide_index=True, width="stretch")
+
+        st.markdown("**Change or Cancel a Follow-Up**")
+        follow_up_options = {
+            int(row.follow_up_id): f"{row.follow_up_date} · {row.follow_up_status}"
+            + (f" · {row.details}" if pd.notna(row.details) and str(row.details).strip() else "")
+            for row in follow_ups_df.itertuples(index=False)
+        }
+        selected_follow_up_id = st.selectbox(
+            "Select Follow-Up",
+            options=list(follow_up_options.keys()),
+            format_func=lambda fid: follow_up_options[fid],
+            key="followup_edit_select",
+        )
+        selected_follow_up = follow_ups_df.loc[follow_ups_df["follow_up_id"] == selected_follow_up_id].iloc[0]
+        try:
+            existing_date = date.fromisoformat(str(selected_follow_up["follow_up_date"]))
+        except (ValueError, TypeError):
+            existing_date = date.today()
+        status_choices = ["scheduled", "completed", "missed", "rescheduled"]
+        existing_status = str(selected_follow_up["follow_up_status"])
+        status_index = status_choices.index(existing_status) if existing_status in status_choices else 0
+        existing_details = "" if pd.isna(selected_follow_up["details"]) else str(selected_follow_up["details"])
+
+        ef1, ef2 = st.columns([1, 1])
+        edit_date = ef1.date_input("New Date", value=existing_date, key="followup_edit_date")
+        edit_status = ef1.selectbox(
+            "New Status", status_choices, index=status_index, key="followup_edit_status"
+        )
+        edit_details = ef2.text_area(
+            "Details", value=existing_details, key="followup_edit_details"
+        )
+
+        action_col1, action_col2 = st.columns([1, 1])
+        if action_col1.button("Update Follow-Up", width="stretch", key="followup_update_btn"):
+            with sqlite3.connect(db_path) as connection:
+                update_follow_up(
+                    connection,
+                    int(selected_follow_up_id),
+                    selected_youth_id,
+                    edit_date,
+                    edit_status,
+                    edit_details,
+                )
+                connection.commit()
+            st.success("Follow-up updated.")
+            st.rerun()
+
+        confirm_cancel = action_col2.checkbox("Confirm cancellation", key="followup_cancel_confirm")
+        if action_col2.button(
+            "Cancel Follow-Up",
+            width="stretch",
+            type="secondary",
+            disabled=not confirm_cancel,
+            key="followup_cancel_btn",
+        ):
+            with sqlite3.connect(db_path) as connection:
+                cancel_follow_up(connection, int(selected_follow_up_id), selected_youth_id)
+                connection.commit()
+            st.success("Follow-up cancelled.")
+            st.rerun()
 
 
 if __name__ == "__main__":

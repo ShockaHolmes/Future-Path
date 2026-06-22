@@ -127,12 +127,9 @@ echo "Servers auto-stop after all dashboard tabs are closed."
 echo
 echo "Press Ctrl+C here to stop all Future Path dashboard servers."
 
+# Open only the selected dashboard so a single dashboard tab is visible at a time.
+# All servers stay running in the background; in-app navigation reuses this same tab.
 open "http://localhost:${DASHBOARD_PORT}" >/dev/null 2>&1 || true
-for port in 8601 8602 8603 8604 8605; do
-  if [[ "$port" != "$DASHBOARD_PORT" ]]; then
-    open "http://localhost:${port}" >/dev/null 2>&1 || true
-  fi
-done
 
 "$PYTHON" src/dashboard_idle_watcher.py --idle-seconds 20 --startup-grace-seconds 45
 close_terminal_window_if_needed
