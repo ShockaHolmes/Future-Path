@@ -18,7 +18,6 @@ if str(SRC_PATH) not in sys.path:
 from dashboard_server_manager import ensure_single_dashboard, switch_dashboard
 from dashboard_theme import (
     branded_palette,
-    current_theme_badge_html,
     get_theme_mode,
     render_theme_toggle,
     theme_component_styles,
@@ -1356,7 +1355,6 @@ def render() -> None:
                 </div>
                 <div class="fp-header-meta">
                     <div class="overview-badge">Overview</div>
-                    {current_theme_badge_html()}
                 </div>
             </div>
         </div>
